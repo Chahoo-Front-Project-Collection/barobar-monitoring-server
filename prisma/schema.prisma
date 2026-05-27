@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Tenant {
+  id         String    @id @default(cuid())
+  name       String
+  slug       String    @unique
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  apiKeys     ApiKey[]
+  errors      Error[]
+  errorEvents ErrorEvent[]
+  replays     Replay[]
+
+  @@map("tenants")
+}
+
+model ApiKey {
+  id             String   @id @default(cuid())
+  tenantId       String   @map("tenant_id")
+  publicKey      String   @unique @map("public_key")
+  allowedOrigins String[] @map("allowed_origins")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@map("api_keys")
+}
+
+model Error {
+  id              String   @id @default(cuid())
+  tenantId        String   @map("tenant_id")
+  fingerprint     String
+  message         String
+  stack           String?
+  pageUrl         String   @map("page_url")
+  requestUrl      String   @map("request_url")
+  statusCode      Int      @map("status_code")
+  release         String
+  environment     String
+  firstSeenAt     DateTime @default(now()) @map("first_seen_at")
+  lastSeenAt      DateTime @default(now()) @map("last_seen_at")
+  occurrenceCount Int      @default(1) @map("occurrence_count")
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  errorEvents ErrorEvent[]
+
+  @@unique([tenantId, fingerprint])
+  @@map("errors")
+}
+
+model ErrorEvent {
+  id             String   @id @default(cuid())
+  errorId        String   @map("error_id")
+  tenantId       String   @map("tenant_id")
+  sessionId      String   @map("session_id")
+  userId         String?  @map("user_id")
+  userName       String?  @map("user_name")
+  companyId      String?  @map("company_id")
+  companyName    String?  @map("company_name")
+  message        String
+  stack          String?
+  pageUrl        String   @map("page_url")
+  requestUrl     String   @map("request_url")
+  statusCode     Int      @map("status_code")
+  browserName    String?  @map("browser_name")
+  browserVersion String?  @map("browser_version")
+  osName         String?  @map("os_name")
+  osVersion      String?  @map("os_version")
+  deviceType     String?  @map("device_type")
+  userAgent      String?  @map("user_agent")
+  occurredAt     DateTime @map("occurred_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  error   Error   @relation(fields: [errorId], references: [id])
+  replay  Replay?
+
+  @@map("error_events")
+}
+
+model Replay {
+  id           String   @id @default(cuid())
+  tenantId     String   @map("tenant_id")
+  errorEventId String   @unique @map("error_event_id")
+  storageKey   String   @map("storage_key")
+  sizeBytes    Int      @map("size_bytes")
+  durationMs   Int      @map("duration_ms")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  errorEvent ErrorEvent @relation(fields: [errorEventId], references: [id])
+
+  @@map("replays")
+}

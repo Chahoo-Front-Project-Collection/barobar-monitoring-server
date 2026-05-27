@@ -1,0 +1,11 @@
+docs/superpowers/
+storage/
+
+.claude/
+dist/
+node_modules/
+
+.env
+.env.*
+!.env.example
+/generated/prisma
