@@ -12,14 +12,15 @@ async function main() {
     create: { name: 'Demo 고객사', slug: 'demo' },
   });
 
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://localhost:8080',
+  ];
   await prisma.apiKey.upsert({
     where: { publicKey: 'pub_demo' },
-    update: {},
-    create: {
-      tenantId: tenant.id,
-      publicKey: 'pub_demo',
-      allowedOrigins: ['http://localhost:3000', 'http://localhost:5173'],
-    },
+    update: { allowedOrigins },
+    create: { tenantId: tenant.id, publicKey: 'pub_demo', allowedOrigins },
   });
 
   console.log('Seed complete. tenant:', tenant.slug);
