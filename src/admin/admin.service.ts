@@ -9,7 +9,11 @@ export class AdminService {
     private readonly storage: ReplayStorageService,
   ) {}
 
-  async getErrors(query: { tenantSlug?: string; environment?: string; release?: string }) {
+  async getErrors(query: {
+    tenantSlug?: string;
+    environment?: string;
+    release?: string;
+  }) {
     return this.prisma.error.findMany({
       where: {
         ...(query.tenantSlug && { tenant: { slug: query.tenantSlug } }),
@@ -45,7 +49,9 @@ export class AdminService {
       },
       include: {
         tenant: { select: { slug: true } },
-        errorEvent: { select: { pageUrl: true, occurredAt: true, message: true } },
+        errorEvent: {
+          select: { pageUrl: true, occurredAt: true, message: true },
+        },
       },
       orderBy: { createdAt: 'desc' },
       take: 100,
