@@ -12,12 +12,12 @@ export class AdminService {
   async getErrors(query: {
     tenantSlug?: string;
     environment?: string;
-    release?: string;
+    version?: string;
   }) {
     const where = {
       ...(query.tenantSlug && { tenant: { slug: query.tenantSlug } }),
       ...(query.environment && { environment: query.environment }),
-      ...(query.release && { release: query.release }),
+      ...(query.version && { version: query.version }),
     };
     const [items, total] = await this.prisma.$transaction([
       this.prisma.error.findMany({

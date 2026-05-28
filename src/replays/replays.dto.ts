@@ -1,5 +1,9 @@
 import {
-  IsString, IsInt, IsArray, IsOptional, IsDateString,
+  IsString,
+  IsInt,
+  IsArray,
+  IsOptional,
+  IsDateString,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -48,7 +52,10 @@ class ViewportDto {
 class DeviceDto {
   @IsOptional() @IsString() type?: string;
   @IsOptional() @ValidateNested() @Type(() => ScreenDto) screen?: ScreenDto;
-  @IsOptional() @ValidateNested() @Type(() => ViewportDto) viewport?: ViewportDto;
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ViewportDto)
+  viewport?: ViewportDto;
 }
 
 class ClientDto {
@@ -68,7 +75,7 @@ export class CreateReplayDto {
   @IsString() tenant_id: string;
   @IsString() public_key: string;
   @IsString() session_id: string;
-  @IsString() release: string;
+  @IsString() version: string;
   @IsString() environment: string;
   @IsString() page_url: string;
 

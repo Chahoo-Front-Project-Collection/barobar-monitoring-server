@@ -63,7 +63,7 @@ Replay 수집
 에러 저장
 
 - tenant_id 기준 고객사 구분
-- release, environment, page_url, request_url, status_code 저장
+- version, environment, page_url, request_url, status_code 저장
 - 같은 에러는 fingerprint 기준으로 그룹화
 
 대시보드
@@ -71,7 +71,7 @@ Replay 수집
 - 에러 목록 조회
 - 에러 상세 조회
 - replay 재생
-- tenant / environment / release 필터
+- tenant / environment / version 필터
 
 ## **7. 성공 기준**
 

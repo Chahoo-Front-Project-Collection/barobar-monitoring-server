@@ -10,12 +10,12 @@ export class AdminController {
   async getErrors(
     @Query('tenant') tenantSlug?: string,
     @Query('environment') environment?: string,
-    @Query('release') release?: string,
+    @Query('version') version?: string,
   ) {
     const { items, total } = await this.adminService.getErrors({
       tenantSlug,
       environment,
-      release,
+      version,
     });
     return paginated(items, total, 100);
   }

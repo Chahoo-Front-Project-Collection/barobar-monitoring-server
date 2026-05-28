@@ -112,7 +112,7 @@ POST /api/replays
   "tenant_id": "demo",
   "public_key": "pub_demo",
   "session_id": "1716790000000-abc123",
-  "release": "local-dev",
+  "version": "3.2.0",
   "environment": "production",
   "page_url": "https://service.example.com/orders",
   "user": {
@@ -213,7 +213,7 @@ GET /api/admin/replays/:id
 - page_url
 - request_url
 - status_code
-- release
+- version
 - environment
 - first_seen_at
 - last_seen_at
@@ -307,11 +307,11 @@ src/lib/monitoring.ts
 
 ```ts
 initMonitoring({
-  apiUrl: "http://localhost:4000",
-  tenantId: "demo",
-  publicKey: "pub_demo",
-  release: "local-dev",
-  environment: "development",
+  apiUrl: 'http://localhost:4000',
+  tenantId: 'demo',
+  publicKey: 'pub_demo',
+  version: '3.2.0',
+  environment: 'development',
 });
 ```
 

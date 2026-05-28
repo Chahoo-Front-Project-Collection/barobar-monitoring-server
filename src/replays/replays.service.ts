@@ -15,7 +15,11 @@ export class ReplaysService {
   ) {}
 
   async create(dto: CreateReplayDto, origin: string | undefined) {
-    const tenantDbId = await this.tenantGuard.validate(dto.tenant_id, dto.public_key, origin);
+    const tenantDbId = await this.tenantGuard.validate(
+      dto.tenant_id,
+      dto.public_key,
+      origin,
+    );
 
     const replayId = `replay_${randomUUID()}`;
     const fingerprint = buildFingerprint({
@@ -35,7 +39,11 @@ export class ReplaysService {
 
     let storageResult: { storageKey: string; sizeBytes: number };
     try {
-      storageResult = await this.storage.save(dto.tenant_id, replayId, replayPayload);
+      storageResult = await this.storage.save(
+        dto.tenant_id,
+        replayId,
+        replayPayload,
+      );
     } catch {
       throw new InternalServerErrorException('Failed to save replay file');
     }
@@ -43,10 +51,14 @@ export class ReplaysService {
     try {
       const result = await this.prisma.$transaction(async (tx) => {
         const error = await tx.error.upsert({
-          where: { tenantId_fingerprint: { tenantId: tenantDbId, fingerprint } },
+          where: {
+            tenantId_fingerprint: { tenantId: tenantDbId, fingerprint },
+          },
           update: {
             lastSeenAt: new Date(dto.occurred_at),
             occurrenceCount: { increment: 1 },
+            version: dto.version,
+            environment: dto.environment,
           },
           create: {
             tenantId: tenantDbId,
@@ -56,7 +68,7 @@ export class ReplaysService {
             pageUrl: dto.page_url,
             requestUrl: dto.error.request_url,
             statusCode: dto.error.status_code,
-            release: dto.release,
+            version: dto.version,
             environment: dto.environment,
             firstSeenAt: new Date(dto.occurred_at),
             lastSeenAt: new Date(dto.occurred_at),
@@ -77,6 +89,8 @@ export class ReplaysService {
             pageUrl: dto.page_url,
             requestUrl: dto.error.request_url,
             statusCode: dto.error.status_code,
+            version: dto.version,
+            environment: dto.environment,
             browserName: dto.client?.browser?.name,
             browserVersion: dto.client?.browser?.version,
             osName: dto.client?.os?.name,
@@ -106,7 +120,7 @@ export class ReplaysService {
         error_event_id: result.errorEvent.id,
         error_id: result.error.id,
       };
-    } catch (err) {
+    } catch {
       await this.storage.delete(storageResult.storageKey);
       throw new InternalServerErrorException('Failed to save to database');
     }

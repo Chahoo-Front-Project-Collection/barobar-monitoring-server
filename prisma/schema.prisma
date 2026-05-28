@@ -41,7 +41,7 @@ model Error {
   pageUrl         String   @map("page_url")
   requestUrl      String   @map("request_url")
   statusCode      Int      @map("status_code")
-  release         String
+  version         String
   environment     String
   firstSeenAt     DateTime @default(now()) @map("first_seen_at")
   lastSeenAt      DateTime @default(now()) @map("last_seen_at")
@@ -68,6 +68,8 @@ model ErrorEvent {
   pageUrl        String   @map("page_url")
   requestUrl     String   @map("request_url")
   statusCode     Int      @map("status_code")
+  version        String
+  environment    String
   browserName    String?  @map("browser_name")
   browserVersion String?  @map("browser_version")
   osName         String?  @map("os_name")
