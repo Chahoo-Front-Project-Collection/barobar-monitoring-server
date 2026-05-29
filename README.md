@@ -1,98 +1,118 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Barobar Monitoring Server
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Barobar 서비스의 프론트엔드 에러와 **rrweb 세션 리플레이**를 수집·저장하고,
+관리자 대시보드에 조회 API를 제공하는 백엔드입니다.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+클라이언트 SDK가 보낸 에러를 fingerprint로 그룹화하여 저장하고, 리플레이 페이로드는
+gzip 파일로 보관합니다. 수집된 데이터는 Admin API를 통해 [barobar-monitoring-dashboard](../barobar-monitoring-dashboard)에서 조회됩니다.
 
-## Description
+## Quick Start
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+### 요구사항
 
-## Project setup
+- **Node.js** 20+
+- **pnpm**
+- **PostgreSQL** 16 (로컬 설치 또는 아래 Docker Compose 사용)
+
+### 환경 변수
+
+`.env.example`를 복사해 `.env`를 만듭니다.
 
 ```bash
-$ pnpm install
+DATABASE_URL="postgresql://barobar:barobar@localhost:5432/barobar_monitoring"
+STORAGE_PATH="./storage"   # 리플레이 gzip 파일 저장 경로
+PORT=4000
 ```
 
-## Compile and run the project
+### 명령어
 
 ```bash
-# development
-$ pnpm run start
+pnpm install                       # 의존성 설치
+docker compose up -d               # PostgreSQL 16 컨테이너 실행
+pnpm prisma migrate dev            # 마이그레이션 적용 + Prisma Client 생성
+pnpm prisma db seed                # (선택) 시드 데이터 주입
 
-# watch mode
-$ pnpm run start:dev
+pnpm start:dev                     # 개발 서버 (watch, http://localhost:4000)
+pnpm build                         # 프로덕션 빌드 (nest build)
+pnpm start:prod                    # 빌드 결과 실행 (node dist/main)
 
-# production mode
-$ pnpm run start:prod
+pnpm test                          # 단위 테스트 (Jest)
+pnpm test:watch                    # 테스트 watch
+pnpm test:e2e                      # E2E 테스트
+pnpm lint                          # ESLint (--fix)
+pnpm format                        # Prettier 포맷팅
 ```
 
-## Run tests
+## Tech Stack
 
-```bash
-# unit tests
-$ pnpm run test
+| 영역       | 기술                                  |
+| ---------- | ------------------------------------- |
+| 언어       | TypeScript 5                          |
+| 프레임워크 | NestJS 11 (Express 5)                 |
+| ORM        | Prisma 7 (`@prisma/adapter-pg`)       |
+| DB         | PostgreSQL 16                         |
+| 검증       | class-validator, class-transformer    |
+| 스토리지   | 파일 시스템 + gzip (`zlib`)           |
+| 테스트     | Jest 30, ts-jest, Supertest           |
+| 품질       | ESLint 9, typescript-eslint, Prettier |
 
-# e2e tests
-$ pnpm run test:e2e
+## Architecture
 
-# test coverage
-$ pnpm run test:cov
+```mermaid
+flowchart LR
+  FE["실서비스 FE<br/>monitoring.ts + axios interceptor"] -->|POST /api/replays| API["monitoring-server<br/>NestJS"]
+
+  API --> DB["PostgreSQL<br/>metadata"]
+  API --> FS["Local Filesystem<br/>replay json.gz"]
+
+  DASH["monitoring-dashboard<br/>React"] -->|GET /api/admin/*| API
+  DASH --> PLAYER["rrweb-player"]
 ```
 
-## Deployment
+## Folder Structure
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+NestJS 모듈 구조로 구성되며, 수집(write)과 조회(read) 경로가 분리되어 있습니다.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+```
+src/
+├── main.ts          # 부트스트랩: ValidationPipe(whitelist), CORS, JSON 50mb, PORT
+├── app.module.ts    # 루트 모듈
+├── admin/           # 대시보드용 조회 API (errors / replays)
+├── replays/         # 리플레이 수집(ingestion): controller, service,
+│                    #   storage(gzip), fingerprint, DTO
+├── tenant/          # 테넌트 인증 (API Key + Origin allowlist) 가드
+├── prisma/          # PrismaService (DB 접근)
+└── common/          # 공용 응답 헬퍼 (ok, paginated 봉투)
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+**데이터 모델 (Prisma / PostgreSQL)**
 
-## Resources
+- `Tenant` — 테넌트(서비스 단위), `slug`로 식별
+- `ApiKey` — 테넌트별 공개 키 + 허용 Origin 목록
+- `Error` — `(tenantId, fingerprint)`로 그룹화된 에러. 발생 횟수/최초·최종 발생 시각 집계
+- `ErrorEvent` — 개별 발생 이벤트 (사용자·회사·브라우저·OS·디바이스 컨텍스트)
+- `Replay` — 리플레이 메타데이터 + 스토리지 키(`storageKey`)
 
-Check out a few resources that may come in handy when working with NestJS:
+리플레이 페이로드(rrweb 이벤트·HTTP 요청·컨텍스트)는 DB가 아닌
+`STORAGE_PATH/replays/<tenant>/<replayId>.json.gz` 로 gzip 압축 저장하고,
+DB에는 메타데이터와 스토리지 키만 기록합니다.
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+## Features
 
-## Support
+- **리플레이 수집** — `POST /api/replays`
+  - `tenant_id` + `public_key` + 요청 Origin으로 테넌트 인증 (Origin allowlist 검증)
+  - 에러 내용으로 fingerprint 생성 → `Error` upsert(중복 그룹화, 발생 횟수 증가)
+  - `ErrorEvent` 생성 및 리플레이 페이로드 gzip 저장 후 `Replay` 기록
+- **Admin 조회 API** — `/api/admin/*` (대시보드 전용)
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+  | 메서드 | 경로                     | 설명                                                                                                    |
+  | ------ | ------------------------ | ------------------------------------------------------------------------------------------------------- |
+  | `GET`  | `/api/admin/errors`      | 에러 그룹 목록 (필터: `message`, `environment`, `version`, `date_from`, `date_to`, `page`, `page_size`) |
+  | `GET`  | `/api/admin/errors/:id`  | 에러 상세 + 발생 이벤트                                                                                 |
+  | `GET`  | `/api/admin/replays`     | 리플레이 목록                                                                                           |
+  | `GET`  | `/api/admin/replays/:id` | 리플레이 상세 + 페이로드                                                                                |
+  - 날짜 필터는 `lastSeenAt` 기준이며 `date_to`는 해당 일자 전체를 포함합니다.
+  - 응답은 `{ success, message, data }` 봉투 형식이며, 목록은 `pagination` 정보를 포함합니다.
 
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+- **테넌트 인증** — API Key(공개 키) + Origin 허용 목록, DB 조회 타임아웃(5s) 처리
+- **파일 기반 스토리지** — 리플레이 페이로드를 gzip JSON으로 저장/로드
