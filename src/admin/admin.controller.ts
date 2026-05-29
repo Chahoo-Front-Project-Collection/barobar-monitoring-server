@@ -8,16 +8,28 @@ export class AdminController {
 
   @Get('errors')
   async getErrors(
-    @Query('tenant') tenantSlug?: string,
+    @Query('message') message?: string,
     @Query('environment') environment?: string,
     @Query('version') version?: string,
+    @Query('date_from') dateFrom?: string,
+    @Query('date_to') dateTo?: string,
+    @Query('page') page?: string,
+    @Query('page_size') pageSize?: string,
   ) {
-    const { items, total } = await this.adminService.getErrors({
-      tenantSlug,
+    const {
+      items,
+      total,
+      pageSize: limit,
+    } = await this.adminService.getErrors({
+      message,
       environment,
       version,
+      dateFrom,
+      dateTo,
+      page: page ? Number(page) : undefined,
+      pageSize: pageSize ? Number(pageSize) : undefined,
     });
-    return paginated(items, total, 100);
+    return paginated(items, total, limit);
   }
 
   @Get('errors/:id')
