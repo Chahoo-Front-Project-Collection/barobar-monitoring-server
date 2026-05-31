@@ -1,10 +1,13 @@
 # Barobar Monitoring Server
 
-Barobar 서비스의 프론트엔드 에러와 **rrweb 세션 리플레이**를 수집·저장하고,
-관리자 대시보드에 조회 API를 제공하는 백엔드입니다.
+Barobar 서비스의 프론트엔드 에러와 **rrweb 세션 리플레이**를 `수집·저장`하고,
+모니터링 대시보드 웹에서 `조회` API를 제공하는 백엔드입니다.
 
-클라이언트 SDK가 보낸 에러를 fingerprint로 그룹화하여 저장하고, 리플레이 페이로드는
-gzip 파일로 보관합니다. 수집된 데이터는 Admin API를 통해 [barobar-monitoring-dashboard](../barobar-monitoring-dashboard)에서 조회됩니다.
+- 실서비스 FE에서 보낸 500 에러 이벤트를 해당 서버에서 저장.
+- 리플레이 페이로드는 gzip 파일로 보관.
+- 수집된 데이터는 모니터링 대시보드 웹에서 조회.
+
+> Sentry 같은 외부 통합 SaaS에 의존하지 않고, "세션 리플레이"라는 핵심 기능만 자체 호스팅으로 가볍게 운영하는 것을 목표로 합니다.
 
 ## Quick Start
 
