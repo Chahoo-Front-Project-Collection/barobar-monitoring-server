@@ -394,15 +394,19 @@ EC2_HOST
 EC2_USER
 EC2_SSH_KEY
 EC2_PORT
+EC2_KNOWN_HOSTS
 APP_DIR=/srv/barobar-monitoring-server
 ```
 
+`EC2_KNOWN_HOSTS` is recommended. If it is not set, the deploy workflow uses `ssh-keyscan` at deploy time.
+
 - [ ] Add deploy workflow:
-  - trigger on push to `main`
-  - allow `workflow_dispatch`
-  - run CI first
+  - current initial mode: `workflow_dispatch` manual deploy only
+  - run test/build/docker-build preflight first
   - SSH into EC2 only after CI passes
   - use a concurrency group to prevent overlapping deploys
+
+Automatic deploy trigger can be added later after EC2, Caddy, production `.env`, and GitHub secrets are ready.
 
 - [ ] EC2 deploy commands:
 

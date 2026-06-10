@@ -1,0 +1,119 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Deploy preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.3.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run unit tests
+        run: pnpm exec jest --runInBand --watchman=false
+
+      - name: Build application
+        run: pnpm build
+
+      - name: Build Docker image
+        run: docker build -t barobar-monitoring-server:ci .
+
+  deploy:
+    name: Deploy to EC2
+    needs:
+      - preflight
+    if: always() && needs.preflight.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+
+    env:
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+      EC2_USER: ${{ secrets.EC2_USER }}
+      EC2_PORT: ${{ secrets.EC2_PORT }}
+      EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+      EC2_KNOWN_HOSTS: ${{ secrets.EC2_KNOWN_HOSTS }}
+      APP_DIR: ${{ vars.APP_DIR }}
+
+    steps:
+      - name: Resolve deployment settings
+        run: |
+          set -euo pipefail
+
+          if [ -z "${EC2_HOST}" ]; then
+            echo "EC2_HOST secret is required" >&2
+            exit 1
+          fi
+          if [ -z "${EC2_USER}" ]; then
+            echo "EC2_USER secret is required" >&2
+            exit 1
+          fi
+          if [ -z "${EC2_SSH_KEY}" ]; then
+            echo "EC2_SSH_KEY secret is required" >&2
+            exit 1
+          fi
+
+          echo "EC2_PORT=${EC2_PORT:-22}" >> "$GITHUB_ENV"
+          echo "APP_DIR=${APP_DIR:-/srv/barobar-monitoring-server}" >> "$GITHUB_ENV"
+
+          echo "DEPLOY_SHA=${GITHUB_SHA}" >> "$GITHUB_ENV"
+
+      - name: Configure SSH
+        run: |
+          set -euo pipefail
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s\n' "${EC2_SSH_KEY}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          if [ -n "${EC2_KNOWN_HOSTS}" ]; then
+            printf '%s\n' "${EC2_KNOWN_HOSTS}" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -p "${EC2_PORT}" "${EC2_HOST}" >> ~/.ssh/known_hosts
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy application
+        run: |
+          set -euo pipefail
+
+          ssh -i ~/.ssh/deploy_key -p "${EC2_PORT}" "${EC2_USER}@${EC2_HOST}" \
+            "APP_DIR='${APP_DIR}' GITHUB_SHA='${DEPLOY_SHA}' bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          cd "$APP_DIR"
+          git fetch origin main
+          git checkout "$GITHUB_SHA"
+          docker compose -f docker-compose.prod.yml build
+          docker compose -f docker-compose.prod.yml up -d postgres
+          docker compose -f docker-compose.prod.yml run --rm app pnpm prisma migrate deploy
+          docker compose -f docker-compose.prod.yml up -d app
+          docker image prune -f
+          REMOTE
