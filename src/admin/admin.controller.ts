@@ -1,11 +1,58 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
+import { Response } from 'express';
 import { AdminService } from './admin.service';
+import { AdminAuthService } from './admin-auth.service';
+import { AdminLoginDto } from './admin-auth.dto';
+import { AdminRequest, AdminSessionGuard } from './admin-session.guard';
 import { ok, paginated } from '../common/api-response';
 
 @Controller('api/admin')
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly adminAuth: AdminAuthService,
+  ) {}
 
+  @Post('login')
+  login(
+    @Body() dto: AdminLoginDto,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const session = this.adminAuth.login(dto.username, dto.password);
+    response.cookie(
+      this.adminAuth.cookieName,
+      session.cookieValue,
+      this.adminAuth.cookieOptions(session.expiresAt),
+    );
+    return ok({ username: session.username });
+  }
+
+  @Post('logout')
+  logout(@Res({ passthrough: true }) response: Response) {
+    response.clearCookie(
+      this.adminAuth.cookieName,
+      this.adminAuth.clearCookieOptions(),
+    );
+    return ok({ success: true });
+  }
+
+  @UseGuards(AdminSessionGuard)
+  @Get('me')
+  me(@Req() request: AdminRequest) {
+    return ok({ username: request.adminUser?.username });
+  }
+
+  @UseGuards(AdminSessionGuard)
   @Get('errors')
   async getErrors(
     @Query('message') message?: string,
@@ -32,18 +79,21 @@ export class AdminController {
     return paginated(items, total, limit);
   }
 
+  @UseGuards(AdminSessionGuard)
   @Get('errors/:id')
   async getError(@Param('id') id: string) {
     const data = await this.adminService.getError(id);
     return ok(data);
   }
 
+  @UseGuards(AdminSessionGuard)
   @Get('replays')
   async getReplays(@Query('tenant') tenantSlug?: string) {
     const { items, total } = await this.adminService.getReplays({ tenantSlug });
     return paginated(items, total, 100);
   }
 
+  @UseGuards(AdminSessionGuard)
   @Get('replays/:id')
   async getReplay(@Param('id') id: string) {
     const data = await this.adminService.getReplay(id);

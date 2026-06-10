@@ -12,6 +12,8 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
+    "cleanup:replays": "node dist/maintenance/replay-cleanup.command.js",
+    "cleanup:replays:dev": "ts-node src/maintenance/replay-cleanup.command.ts",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
