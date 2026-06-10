@@ -437,6 +437,7 @@ docker volume rm <project>_replay_storage
 - [ ] Keep PostgreSQL backups for 5 days.
 - [ ] Delete PostgreSQL backups older than 5 days.
 - [ ] Test one restore before production use.
+- [ ] Verify backup readability with `pnpm backup:postgres:verify -- <backup-file>`.
 - [ ] Run daily replay cleanup with the capacity-based retention policy.
 - [ ] Estimate replay storage using `190KB` per session as the initial sizing baseline.
 - [ ] Monitor disk usage for postgres and replay storage.
@@ -458,6 +459,20 @@ PostgreSQL backup retention:
 PostgreSQL backup timing:
 - Run daily at 05:00 KST.
 - If the EC2 host uses UTC cron, schedule it at 20:00 UTC on the previous day or set the cron timezone to Asia/Seoul.
+```
+
+Backup commands:
+
+```bash
+APP_DIR=/srv/barobar-monitoring-server BACKUP_DIR=/var/backups/barobar-monitoring pnpm backup:postgres
+pnpm backup:postgres:verify -- /var/backups/barobar-monitoring/barobar_monitoring_latest.dump
+```
+
+Host cron example:
+
+```cron
+CRON_TZ=Asia/Seoul
+0 5 * * * cd /srv/barobar-monitoring-server && BACKUP_DIR=/var/backups/barobar-monitoring pnpm backup:postgres >> /var/log/barobar-monitoring-backup.log 2>&1
 ```
 
 Replay storage estimate:
