@@ -10,6 +10,9 @@ services:
       NODE_ENV: production
       PORT: 4000
       STORAGE_PATH: /data/storage
+      DASHBOARD_ORIGIN: ${DASHBOARD_ORIGIN:?DASHBOARD_ORIGIN is required}
+      REPLAY_ALLOWED_ORIGINS: ${REPLAY_ALLOWED_ORIGINS:?REPLAY_ALLOWED_ORIGINS is required}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
     ports:
       - "127.0.0.1:4000:4000"
     volumes:

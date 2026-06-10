@@ -46,6 +46,19 @@ describe('AdminAuthService', () => {
     );
   });
 
+  it('uses admin as the default username when ADMIN_USERNAME is omitted', () => {
+    delete process.env.ADMIN_USERNAME;
+    const service = new AdminAuthService();
+
+    const session = service.login(
+      'admin',
+      'secret',
+      new Date('2026-06-10T00:00:00.000Z'),
+    );
+
+    expect(session.username).toBe('admin');
+  });
+
   it('rejects a tampered session cookie', () => {
     const service = new AdminAuthService();
     const session = service.login(

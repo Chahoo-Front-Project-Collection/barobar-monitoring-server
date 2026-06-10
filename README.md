@@ -19,13 +19,13 @@ Barobar 서비스의 프론트엔드 에러와 **rrweb 세션 리플레이**를 
 
 ### 환경 변수
 
-`.env.example`를 복사해 `.env`를 만듭니다.
+`.env.example`를 복사해 `.env`를 만들고, 로컬 값으로 바꿉니다.
 
 ```bash
 DATABASE_URL="postgresql://barobar:barobar@localhost:5432/barobar_monitoring"
-STORAGE_PATH="./storage"   # 리플레이 gzip 파일 저장 경로
-PORT=4000
 ```
+
+`PORT`는 기본값 `4000`, `STORAGE_PATH`는 기본값 `./storage`를 사용합니다.
 
 ### 명령어
 

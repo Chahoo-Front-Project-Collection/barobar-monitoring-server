@@ -13,10 +13,14 @@ export class ReplayStorageService {
   private readonly basePath: string;
 
   constructor() {
-    this.basePath = process.env.STORAGE_PATH ?? './storage';
+    this.basePath = './storage';
   }
 
-  async save(tenantId: string, replayId: string, payload: object): Promise<{ storageKey: string; sizeBytes: number }> {
+  async save(
+    tenantId: string,
+    replayId: string,
+    payload: object,
+  ): Promise<{ storageKey: string; sizeBytes: number }> {
     const dir = path.join(this.basePath, 'replays', tenantId);
     await fs.mkdir(dir, { recursive: true });
 
@@ -34,11 +38,13 @@ export class ReplayStorageService {
   async load(storageKey: string): Promise<object> {
     const filePath = path.join(this.basePath, storageKey);
     if (!existsSync(filePath)) {
-      throw new InternalServerErrorException(`Replay file not found: ${storageKey}`);
+      throw new InternalServerErrorException(
+        `Replay file not found: ${storageKey}`,
+      );
     }
     const compressed = await fs.readFile(filePath);
     const json = await gunzip(compressed);
-    return JSON.parse(json.toString());
+    return JSON.parse(json.toString()) as object;
   }
 
   async delete(storageKey: string): Promise<void> {

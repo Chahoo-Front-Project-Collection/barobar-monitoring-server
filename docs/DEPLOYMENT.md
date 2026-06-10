@@ -25,9 +25,9 @@ https://<backend-api-host>
 ## Current Repository Facts
 
 - `package.json` has `build`, `start:prod`, `test`, and `test:e2e` scripts.
-- Local verification passed with `pnpm exec jest --runInBand --watchman=false`: 2 suites, 8 tests.
+- Local verification passed with `pnpm exec jest --runInBand --watchman=false`: 9 suites, 32 tests.
 - Local verification passed with `pnpm build`.
-- `.env.example` requires `DATABASE_URL`, `STORAGE_PATH`, and `PORT`.
+- `.env.example` contains only secret or secret-bearing example values.
 - Local `storage/` is ignored by git and is only local runtime data.
 - Replay gzip files are stored on disk under `${STORAGE_PATH}/replays/<tenant>/...`.
 - Replay DB rows store the matching `storageKey`; replay detail lookup needs both the DB row and the gzip file.
@@ -117,39 +117,50 @@ Initial rate limit values:
 Rate limit basis: both tenant/public key and IP
 ```
 
-### 4. Production Env And Secrets
+### 4. Production Secrets And Runtime Config
 
-- [ ] Prepare production `.env` on EC2 only.
-- [ ] Required values:
+- [ ] Prepare production secret `.env` on EC2 only.
+- [ ] Required secret or secret-bearing values:
 
 ```env
-NODE_ENV=production
-PORT=4000
-POSTGRES_USER=barobar
 POSTGRES_PASSWORD=<strong-postgres-password>
-POSTGRES_DB=barobar_monitoring
 DATABASE_URL=postgresql://barobar:<strong-password>@postgres:5432/barobar_monitoring
-STORAGE_PATH=/data/storage
-DASHBOARD_ORIGIN=<dashboard-production-origin>
-REPLAY_ALLOWED_ORIGINS=<comma-separated-real-service-fe-origins>
-ADMIN_USERNAME=<admin-login-id>
 ADMIN_PASSWORD=<strong-admin-password>
 ADMIN_SESSION_SECRET=<long-random-session-secret>
-ADMIN_SESSION_TTL_SECONDS=28800
-ADMIN_SESSION_COOKIE_NAME=barobar_admin_session
-REPLAY_TENANT_RATE_LIMIT_PER_MINUTE=60
-REPLAY_IP_RATE_LIMIT_PER_MINUTE=120
-REPLAY_STORAGE_WARNING_USAGE_PERCENT=75
-REPLAY_CLEANUP_START_USAGE_PERCENT=80
-REPLAY_CLEANUP_STOP_USAGE_PERCENT=70
-REPLAY_STORAGE_EMERGENCY_USAGE_PERCENT=90
 ```
 
+- [ ] Required non-secret runtime values:
+
+```env
+DASHBOARD_ORIGIN=<dashboard-production-origin>
+REPLAY_ALLOWED_ORIGINS=<comma-separated-real-service-fe-origins>
+```
+
+- [ ] Set non-secret runtime values through EC2 shell env, Compose environment, or production `.env` if you decide to keep all runtime config together.
 - [ ] Generate a long random `ADMIN_SESSION_SECRET` for production.
 - [ ] Set a strong `ADMIN_PASSWORD`; do not reuse the database password.
-- [ ] Ensure `DATABASE_URL` uses the same user, password, and database as `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB`.
+- [ ] Ensure `DATABASE_URL` uses the same password as `POSTGRES_PASSWORD`.
 - [ ] Do not commit production `.env`.
 - [ ] In production, mount `/data/storage` to a persistent Docker volume.
+
+Optional defaults:
+
+```text
+NODE_ENV is set to production by docker-compose.prod.yml.
+PORT is set to 4000 by docker-compose.prod.yml.
+STORAGE_PATH is set to /data/storage by docker-compose.prod.yml.
+POSTGRES_USER defaults to barobar.
+POSTGRES_DB defaults to barobar_monitoring.
+ADMIN_USERNAME defaults to admin.
+ADMIN_SESSION_TTL_SECONDS defaults to 28800.
+ADMIN_SESSION_COOKIE_NAME defaults to barobar_admin_session.
+REPLAY_TENANT_RATE_LIMIT_PER_MINUTE defaults to 60.
+REPLAY_IP_RATE_LIMIT_PER_MINUTE defaults to 120.
+REPLAY_STORAGE_WARNING_USAGE_PERCENT defaults to 75.
+REPLAY_CLEANUP_START_USAGE_PERCENT defaults to 80.
+REPLAY_CLEANUP_STOP_USAGE_PERCENT defaults to 70.
+REPLAY_STORAGE_EMERGENCY_USAGE_PERCENT defaults to 90.
+```
 
 ### 5. Replay Storage Cleanup
 

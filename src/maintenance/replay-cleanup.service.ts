@@ -134,7 +134,7 @@ function createResult(
 
 function readConfig(): ReplayCleanupConfig {
   return {
-    storagePath: process.env.STORAGE_PATH ?? './storage',
+    storagePath: './storage',
     cleanupStartPercent: readPercent(
       process.env.REPLAY_CLEANUP_START_USAGE_PERCENT,
       80,

@@ -40,10 +40,7 @@ export class AdminAuthService {
     now = new Date(),
   ): IssuedAdminSession {
     const config = this.getConfig();
-    if (
-      username !== config.username ||
-      !safeEqual(password, config.password)
-    ) {
+    if (username !== config.username || !safeEqual(password, config.password)) {
       throw new UnauthorizedException('Invalid admin credentials');
     }
 
@@ -116,10 +113,10 @@ export class AdminAuthService {
   }
 
   private getConfig(): AdminAuthConfig {
-    const username = process.env.ADMIN_USERNAME;
+    const username = process.env.ADMIN_USERNAME?.trim() || 'admin';
     const password = process.env.ADMIN_PASSWORD;
     const sessionSecret = process.env.ADMIN_SESSION_SECRET;
-    if (!username || !password || !sessionSecret) {
+    if (!password || !sessionSecret) {
       throw new InternalServerErrorException('Admin auth is not configured');
     }
 
@@ -127,7 +124,10 @@ export class AdminAuthService {
       username,
       password,
       sessionSecret,
-      ttlSeconds: parsePositiveInt(process.env.ADMIN_SESSION_TTL_SECONDS, 8 * 60 * 60),
+      ttlSeconds: parsePositiveInt(
+        process.env.ADMIN_SESSION_TTL_SECONDS,
+        8 * 60 * 60,
+      ),
     };
   }
 }
@@ -135,12 +135,14 @@ export class AdminAuthService {
 function parseCookieHeader(cookieHeader?: string): Record<string, string> {
   if (!cookieHeader) return {};
 
-  return cookieHeader.split(';').reduce<Record<string, string>>((cookies, part) => {
-    const [rawName, ...rawValue] = part.trim().split('=');
-    if (!rawName || rawValue.length === 0) return cookies;
-    cookies[rawName] = decodeURIComponent(rawValue.join('='));
-    return cookies;
-  }, {});
+  return cookieHeader
+    .split(';')
+    .reduce<Record<string, string>>((cookies, part) => {
+      const [rawName, ...rawValue] = part.trim().split('=');
+      if (!rawName || rawValue.length === 0) return cookies;
+      cookies[rawName] = decodeURIComponent(rawValue.join('='));
+      return cookies;
+    }, {});
 }
 
 function parsePayload(encodedPayload: string): AdminSessionPayload | null {
