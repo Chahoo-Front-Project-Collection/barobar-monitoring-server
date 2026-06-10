@@ -9,11 +9,12 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { Response } from 'express';
+import type { Response } from 'express';
 import { AdminService } from './admin.service';
 import { AdminAuthService } from './admin-auth.service';
 import { AdminLoginDto } from './admin-auth.dto';
-import { AdminRequest, AdminSessionGuard } from './admin-session.guard';
+import { AdminSessionGuard } from './admin-session.guard';
+import type { AdminRequest } from './admin-session.guard';
 import { ok, paginated } from '../common/api-response';
 
 @Controller('api/admin')

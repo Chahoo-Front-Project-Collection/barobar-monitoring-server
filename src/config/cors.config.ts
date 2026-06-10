@@ -1,6 +1,9 @@
 import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
 
-type EnvLike = Pick<NodeJS.ProcessEnv, 'DASHBOARD_ORIGIN' | 'REPLAY_ALLOWED_ORIGINS'>;
+interface EnvLike {
+  DASHBOARD_ORIGIN?: string;
+  REPLAY_ALLOWED_ORIGINS?: string;
+}
 
 export function createCorsOptions(env: EnvLike = process.env): CorsOptions {
   const allowedOrigins = new Set([

@@ -125,6 +125,9 @@ Rate limit basis: both tenant/public key and IP
 ```env
 NODE_ENV=production
 PORT=4000
+POSTGRES_USER=barobar
+POSTGRES_PASSWORD=<strong-postgres-password>
+POSTGRES_DB=barobar_monitoring
 DATABASE_URL=postgresql://barobar:<strong-password>@postgres:5432/barobar_monitoring
 STORAGE_PATH=/data/storage
 DASHBOARD_ORIGIN=<dashboard-production-origin>
@@ -144,6 +147,7 @@ REPLAY_STORAGE_EMERGENCY_USAGE_PERCENT=90
 
 - [ ] Generate a long random `ADMIN_SESSION_SECRET` for production.
 - [ ] Set a strong `ADMIN_PASSWORD`; do not reuse the database password.
+- [ ] Ensure `DATABASE_URL` uses the same user, password, and database as `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB`.
 - [ ] Do not commit production `.env`.
 - [ ] In production, mount `/data/storage` to a persistent Docker volume.
 
