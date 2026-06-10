@@ -475,6 +475,12 @@ CRON_TZ=Asia/Seoul
 0 5 * * * cd /srv/barobar-monitoring-server && BACKUP_DIR=/var/backups/barobar-monitoring pnpm backup:postgres >> /var/log/barobar-monitoring-backup.log 2>&1
 ```
 
+Disk monitoring command:
+
+```bash
+pnpm monitor:disk
+```
+
 Replay storage estimate:
 
 ```text
