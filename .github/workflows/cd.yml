@@ -1,9 +1,11 @@
 name: CD
 
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
   workflow_dispatch:
 
 permissions:
@@ -14,48 +16,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  preflight:
-    name: Deploy preflight
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    env:
-      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 11.3.0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Generate Prisma Client
-        run: pnpm prisma generate
-
-      - name: Run unit tests
-        run: pnpm exec jest --runInBand --watchman=false
-
-      - name: Build application
-        run: pnpm build
-
-      - name: Build Docker image
-        run: docker build -t barobar-monitoring-server:ci .
-
   deploy:
     name: Deploy to EC2
-    needs:
-      - preflight
-    if: always() && needs.preflight.result == 'success'
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: production
@@ -65,6 +31,7 @@ jobs:
       EC2_USER: ${{ secrets.EC2_USER }}
       EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
       APP_DIR: ${{ vars.APP_DIR }}
+      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
 
     steps:
       - name: Resolve deployment settings
@@ -87,10 +54,10 @@ jobs:
             echo "APP_DIR repository variable is required" >&2
             exit 1
           fi
-
-          echo "APP_DIR=${APP_DIR}" >> "$GITHUB_ENV"
-
-          echo "DEPLOY_SHA=${GITHUB_SHA}" >> "$GITHUB_ENV"
+          if [ -z "${DEPLOY_SHA}" ]; then
+            echo "DEPLOY_SHA could not be resolved" >&2
+            exit 1
+          fi
 
       - name: Configure SSH
         run: |
