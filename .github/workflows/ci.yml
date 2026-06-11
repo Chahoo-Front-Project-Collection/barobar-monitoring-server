@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      DATABASE_URL: postgresql://barobar:barobar@localhost:5432/barobar_monitoring
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
 
     steps:
       - name: Checkout

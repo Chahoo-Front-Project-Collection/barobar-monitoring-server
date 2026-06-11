@@ -1,6 +1,9 @@
-name: Deploy
+name: CD
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -16,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      DATABASE_URL: postgresql://barobar:barobar@localhost:5432/barobar_monitoring
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
 
     steps:
       - name: Checkout
@@ -60,9 +63,7 @@ jobs:
     env:
       EC2_HOST: ${{ secrets.EC2_HOST }}
       EC2_USER: ${{ secrets.EC2_USER }}
-      EC2_PORT: ${{ secrets.EC2_PORT }}
       EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
-      EC2_KNOWN_HOSTS: ${{ secrets.EC2_KNOWN_HOSTS }}
       APP_DIR: ${{ vars.APP_DIR }}
 
     steps:
@@ -82,9 +83,12 @@ jobs:
             echo "EC2_SSH_KEY secret is required" >&2
             exit 1
           fi
+          if [ -z "${APP_DIR}" ]; then
+            echo "APP_DIR repository variable is required" >&2
+            exit 1
+          fi
 
-          echo "EC2_PORT=${EC2_PORT:-22}" >> "$GITHUB_ENV"
-          echo "APP_DIR=${APP_DIR:-/srv/barobar-monitoring-server}" >> "$GITHUB_ENV"
+          echo "APP_DIR=${APP_DIR}" >> "$GITHUB_ENV"
 
           echo "DEPLOY_SHA=${GITHUB_SHA}" >> "$GITHUB_ENV"
 
@@ -98,18 +102,14 @@ jobs:
           printf '%s\n' "${EC2_SSH_KEY}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
 
-          if [ -n "${EC2_KNOWN_HOSTS}" ]; then
-            printf '%s\n' "${EC2_KNOWN_HOSTS}" > ~/.ssh/known_hosts
-          else
-            ssh-keyscan -p "${EC2_PORT}" "${EC2_HOST}" >> ~/.ssh/known_hosts
-          fi
+          ssh-keyscan -p 22 "${EC2_HOST}" >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
       - name: Deploy application
         run: |
           set -euo pipefail
 
-          ssh -i ~/.ssh/deploy_key -p "${EC2_PORT}" "${EC2_USER}@${EC2_HOST}" \
+          ssh -i ~/.ssh/deploy_key -p 22 "${EC2_USER}@${EC2_HOST}" \
             "APP_DIR='${APP_DIR}' GITHUB_SHA='${DEPLOY_SHA}' bash -s" <<'REMOTE'
           set -euo pipefail
 
@@ -118,7 +118,7 @@ jobs:
           git checkout "$GITHUB_SHA"
           docker compose -f docker-compose.prod.yml build
           docker compose -f docker-compose.prod.yml up -d postgres
-          docker compose -f docker-compose.prod.yml run --rm app pnpm prisma migrate deploy
+          docker compose -f docker-compose.prod.yml run --rm app node node_modules/prisma/build/index.js migrate deploy
           docker compose -f docker-compose.prod.yml up -d app
           docker image prune -f
           REMOTE
