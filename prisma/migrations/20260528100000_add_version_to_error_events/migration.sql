@@ -1,6 +1,6 @@
 -- Add per-occurrence version/environment on error_events.
-ALTER TABLE "error_events" ADD COLUMN "version" TEXT;
-ALTER TABLE "error_events" ADD COLUMN "environment" TEXT;
+ALTER TABLE "error_events" ADD COLUMN IF NOT EXISTS "version" TEXT;
+ALTER TABLE "error_events" ADD COLUMN IF NOT EXISTS "environment" TEXT;
 
 UPDATE "error_events" AS ee
 SET
