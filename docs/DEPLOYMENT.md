@@ -125,6 +125,7 @@ Rate limit basis: both tenant/public key and IP
 ```env
 POSTGRES_PASSWORD=<strong-postgres-password>
 DATABASE_URL=postgresql://barobar:<strong-password>@postgres:5432/barobar_monitoring
+ADMIN_USERNAME=<admin-username>
 ADMIN_PASSWORD=<strong-admin-password>
 ADMIN_SESSION_SECRET=<long-random-session-secret>
 ```
@@ -138,12 +139,12 @@ REPLAY_ALLOWED_ORIGINS=<comma-separated-real-service-fe-origins>
 
 - [ ] Set non-secret runtime values through EC2 shell env, Compose environment, or production `.env` if you decide to keep all runtime config together.
 - [ ] Generate a long random `ADMIN_SESSION_SECRET` for production.
-- [ ] Set a strong `ADMIN_PASSWORD`; do not reuse the database password.
+- [ ] Set `ADMIN_USERNAME` and a strong `ADMIN_PASSWORD`; do not reuse the database password.
 - [ ] Ensure `DATABASE_URL` uses the same password as `POSTGRES_PASSWORD`.
 - [ ] Do not commit production `.env`.
 - [ ] In production, mount `/data/storage` to a persistent Docker volume.
 
-Optional defaults:
+Fixed runtime defaults:
 
 ```text
 NODE_ENV is set to production by docker-compose.prod.yml.
@@ -151,15 +152,12 @@ PORT is set to 4000 by docker-compose.prod.yml.
 STORAGE_PATH is set to /data/storage by docker-compose.prod.yml.
 POSTGRES_USER defaults to barobar.
 POSTGRES_DB defaults to barobar_monitoring.
-ADMIN_USERNAME defaults to admin.
-ADMIN_SESSION_TTL_SECONDS defaults to 28800.
-ADMIN_SESSION_COOKIE_NAME defaults to barobar_admin_session.
-REPLAY_TENANT_RATE_LIMIT_PER_MINUTE defaults to 60.
-REPLAY_IP_RATE_LIMIT_PER_MINUTE defaults to 120.
-REPLAY_STORAGE_WARNING_USAGE_PERCENT defaults to 75.
-REPLAY_CLEANUP_START_USAGE_PERCENT defaults to 80.
-REPLAY_CLEANUP_STOP_USAGE_PERCENT defaults to 70.
-REPLAY_STORAGE_EMERGENCY_USAGE_PERCENT defaults to 90.
+Admin session TTL is fixed to 28800 seconds in code.
+Admin session cookie name is fixed to barobar_admin_session in code.
+Replay tenant rate limit is fixed to 60 requests/minute in code.
+Replay IP rate limit is fixed to 120 requests/minute in code.
+Replay cleanup starts at 80% disk usage and stops at 70% in code.
+Disk monitor thresholds default to warning 75% and emergency 90% in scripts.
 ```
 
 ### 5. Replay Storage Cleanup

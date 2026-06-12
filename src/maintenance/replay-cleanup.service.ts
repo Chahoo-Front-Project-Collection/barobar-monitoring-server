@@ -6,6 +6,9 @@ import {
   StorageDiskUsageService,
 } from './storage-disk-usage.service';
 
+const REPLAY_CLEANUP_START_USAGE_PERCENT = 80;
+const REPLAY_CLEANUP_STOP_USAGE_PERCENT = 70;
+
 interface ReplayCleanupOptions {
   batchSize?: number;
   dryRun?: boolean;
@@ -135,22 +138,9 @@ function createResult(
 function readConfig(): ReplayCleanupConfig {
   return {
     storagePath: './storage',
-    cleanupStartPercent: readPercent(
-      process.env.REPLAY_CLEANUP_START_USAGE_PERCENT,
-      80,
-    ),
-    cleanupStopPercent: readPercent(
-      process.env.REPLAY_CLEANUP_STOP_USAGE_PERCENT,
-      70,
-    ),
+    cleanupStartPercent: REPLAY_CLEANUP_START_USAGE_PERCENT,
+    cleanupStopPercent: REPLAY_CLEANUP_STOP_USAGE_PERCENT,
   };
-}
-
-function readPercent(value: string | undefined, fallback: number) {
-  const parsed = value ? Number.parseFloat(value) : fallback;
-  return Number.isFinite(parsed) && parsed >= 0 && parsed <= 100
-    ? parsed
-    : fallback;
 }
 
 function formatPercent(value: number) {

@@ -46,8 +46,7 @@ describe('AdminAuthService', () => {
     );
   });
 
-  it('uses admin as the default username when ADMIN_USERNAME is omitted', () => {
-    delete process.env.ADMIN_USERNAME;
+  it('uses the configured admin username', () => {
     const service = new AdminAuthService();
 
     const session = service.login(
@@ -57,6 +56,15 @@ describe('AdminAuthService', () => {
     );
 
     expect(session.username).toBe('admin');
+  });
+
+  it('fails closed when admin username is missing', () => {
+    delete process.env.ADMIN_USERNAME;
+    const service = new AdminAuthService();
+
+    expect(() => service.login('admin', 'secret')).toThrow(
+      InternalServerErrorException,
+    );
   });
 
   it('rejects a tampered session cookie', () => {

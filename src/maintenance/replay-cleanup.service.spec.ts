@@ -1,9 +1,6 @@
 import { ReplayStorageService } from '../replays/replay-storage.service';
 import { PrismaService } from '../prisma/prisma.service';
-import {
-  DiskUsageSnapshot,
-  StorageDiskUsageService,
-} from './storage-disk-usage.service';
+import { DiskUsageSnapshot } from './storage-disk-usage.service';
 import { ReplayCleanupService } from './replay-cleanup.service';
 
 describe('ReplayCleanupService', () => {
@@ -20,8 +17,6 @@ describe('ReplayCleanupService', () => {
     process.env = {
       ...originalEnv,
       STORAGE_PATH: '/data/storage',
-      REPLAY_CLEANUP_START_USAGE_PERCENT: '80',
-      REPLAY_CLEANUP_STOP_USAGE_PERCENT: '70',
     };
     prisma = {
       replay: {
@@ -45,7 +40,7 @@ describe('ReplayCleanupService', () => {
     return new ReplayCleanupService(
       prisma as unknown as PrismaService,
       storage as unknown as ReplayStorageService,
-      diskUsage as unknown as StorageDiskUsageService,
+      diskUsage,
     );
   }
 

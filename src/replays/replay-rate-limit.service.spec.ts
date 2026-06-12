@@ -2,20 +2,6 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import { ReplayRateLimitService } from './replay-rate-limit.service';
 
 describe('ReplayRateLimitService', () => {
-  const originalEnv = process.env;
-
-  beforeEach(() => {
-    process.env = {
-      ...originalEnv,
-      REPLAY_TENANT_RATE_LIMIT_PER_MINUTE: '2',
-      REPLAY_IP_RATE_LIMIT_PER_MINUTE: '2',
-    };
-  });
-
-  afterAll(() => {
-    process.env = originalEnv;
-  });
-
   it('limits replay requests by tenant and public key', () => {
     const service = new ReplayRateLimitService();
     const request = {
@@ -24,31 +10,40 @@ describe('ReplayRateLimitService', () => {
       ip: '203.0.113.10',
     };
 
-    service.assertAllowed(request, 1_000);
-    service.assertAllowed(request, 1_001);
+    for (let count = 0; count < 60; count += 1) {
+      service.assertAllowed(request, 1_000 + count);
+    }
 
-    expect(() => service.assertAllowed(request, 1_002)).toThrow(
-      new HttpException('Replay rate limit exceeded', HttpStatus.TOO_MANY_REQUESTS),
+    expect(() => service.assertAllowed(request, 1_060)).toThrow(
+      new HttpException(
+        'Replay rate limit exceeded',
+        HttpStatus.TOO_MANY_REQUESTS,
+      ),
     );
   });
 
   it('limits replay requests by IP across tenants', () => {
-    process.env.REPLAY_TENANT_RATE_LIMIT_PER_MINUTE = '10';
     const service = new ReplayRateLimitService();
 
-    service.assertAllowed(
-      { tenantId: 'demo-a', publicKey: 'a', ip: '203.0.113.10' },
-      1_000,
-    );
-    service.assertAllowed(
-      { tenantId: 'demo-b', publicKey: 'b', ip: '203.0.113.10' },
-      1_001,
-    );
+    for (let count = 0; count < 120; count += 1) {
+      service.assertAllowed(
+        {
+          tenantId: `demo-${count}`,
+          publicKey: `public-${count}`,
+          ip: '203.0.113.10',
+        },
+        1_000 + count,
+      );
+    }
 
     expect(() =>
       service.assertAllowed(
-        { tenantId: 'demo-c', publicKey: 'c', ip: '203.0.113.10' },
-        1_002,
+        {
+          tenantId: 'demo-over-limit',
+          publicKey: 'public-over-limit',
+          ip: '203.0.113.10',
+        },
+        1_120,
       ),
     ).toThrow(HttpException);
   });
@@ -61,8 +56,9 @@ describe('ReplayRateLimitService', () => {
       ip: '203.0.113.10',
     };
 
-    service.assertAllowed(request, 1_000);
-    service.assertAllowed(request, 1_001);
+    for (let count = 0; count < 60; count += 1) {
+      service.assertAllowed(request, 1_000 + count);
+    }
     service.assertAllowed(request, 61_000);
 
     expect(() => service.assertAllowed(request, 61_001)).not.toThrow();

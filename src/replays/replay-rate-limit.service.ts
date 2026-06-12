@@ -1,5 +1,8 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 
+const REPLAY_TENANT_RATE_LIMIT_PER_MINUTE = 60;
+const REPLAY_IP_RATE_LIMIT_PER_MINUTE = 120;
+
 interface ReplayRateLimitRequest {
   tenantId: string;
   publicKey: string;
@@ -19,12 +22,12 @@ export class ReplayRateLimitService {
   assertAllowed(request: ReplayRateLimitRequest, now = Date.now()) {
     this.assertBucketAllowed(
       `tenant:${request.tenantId}:${request.publicKey}`,
-      readPositiveInt(process.env.REPLAY_TENANT_RATE_LIMIT_PER_MINUTE, 60),
+      REPLAY_TENANT_RATE_LIMIT_PER_MINUTE,
       now,
     );
     this.assertBucketAllowed(
       `ip:${request.ip}`,
-      readPositiveInt(process.env.REPLAY_IP_RATE_LIMIT_PER_MINUTE, 120),
+      REPLAY_IP_RATE_LIMIT_PER_MINUTE,
       now,
     );
   }
@@ -45,9 +48,4 @@ export class ReplayRateLimitService {
 
     bucket.count += 1;
   }
-}
-
-function readPositiveInt(value: string | undefined, fallback: number) {
-  const parsed = value ? Number.parseInt(value, 10) : fallback;
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }

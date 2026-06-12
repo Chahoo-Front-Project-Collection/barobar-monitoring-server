@@ -6,6 +6,9 @@ import {
 import { createHmac, timingSafeEqual } from 'crypto';
 import { CookieOptions } from 'express';
 
+const ADMIN_SESSION_COOKIE_NAME = 'barobar_admin_session';
+const ADMIN_SESSION_TTL_SECONDS = 8 * 60 * 60;
+
 export interface AdminSession {
   username: string;
 }
@@ -31,7 +34,7 @@ export interface IssuedAdminSession {
 @Injectable()
 export class AdminAuthService {
   get cookieName() {
-    return process.env.ADMIN_SESSION_COOKIE_NAME ?? 'barobar_admin_session';
+    return ADMIN_SESSION_COOKIE_NAME;
   }
 
   login(
@@ -113,10 +116,10 @@ export class AdminAuthService {
   }
 
   private getConfig(): AdminAuthConfig {
-    const username = process.env.ADMIN_USERNAME?.trim() || 'admin';
+    const username = process.env.ADMIN_USERNAME;
     const password = process.env.ADMIN_PASSWORD;
     const sessionSecret = process.env.ADMIN_SESSION_SECRET;
-    if (!password || !sessionSecret) {
+    if (!username || !password || !sessionSecret) {
       throw new InternalServerErrorException('Admin auth is not configured');
     }
 
@@ -124,10 +127,7 @@ export class AdminAuthService {
       username,
       password,
       sessionSecret,
-      ttlSeconds: parsePositiveInt(
-        process.env.ADMIN_SESSION_TTL_SECONDS,
-        8 * 60 * 60,
-      ),
+      ttlSeconds: ADMIN_SESSION_TTL_SECONDS,
     };
   }
 }
@@ -157,11 +157,6 @@ function parsePayload(encodedPayload: string): AdminSessionPayload | null {
   } catch {
     return null;
   }
-}
-
-function parsePositiveInt(value: string | undefined, fallback: number) {
-  const parsed = value ? Number.parseInt(value, 10) : fallback;
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
 function safeEqual(left: string, right: string) {
