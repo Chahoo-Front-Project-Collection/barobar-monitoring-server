@@ -386,11 +386,12 @@ docker volume rm <project>_replay_storage
 - [ ] Smoke test:
 
 ```bash
-curl -i http://127.0.0.1:4000
-curl -i https://<backend-api-host>
+curl -i http://127.0.0.1:4000/health
+curl -i https://<backend-api-host>/health
 ```
 
 - [ ] Verify:
+  - `/health` returns `{"status":"ok"}` without checking PostgreSQL or replay storage
   - admin endpoints reject unauthenticated requests
   - valid replay POST creates DB metadata
   - valid replay POST creates gzip replay file
@@ -407,6 +408,7 @@ EC2_SSH_KEY
 EC2_PORT
 EC2_KNOWN_HOSTS
 APP_DIR=/srv/barobar-monitoring-server
+BACKEND_API_BASE_URL=https://<backend-api-host>
 ```
 
 `EC2_KNOWN_HOSTS` is recommended. If it is not set, the deploy workflow uses `ssh-keyscan` at deploy time.
@@ -416,6 +418,7 @@ APP_DIR=/srv/barobar-monitoring-server
   - run test/build/docker-build preflight first
   - SSH into EC2 only after CI passes
   - use a concurrency group to prevent overlapping deploys
+  - run a post-deploy smoke test for public HTTPS health
 
 Automatic deploy trigger can be added later after EC2, Caddy, production `.env`, and GitHub secrets are ready.
 
@@ -538,6 +541,7 @@ User decisions after deployment:
 
 ### Stage 7. Production Verification
 
+- [ ] `https://<backend-api-host>/health` returns `{"status":"ok"}`.
 - [ ] `https://<backend-api-host>` works.
 - [ ] `http://<backend-api-host>` redirects to HTTPS.
 - [ ] Public `4000` is blocked.

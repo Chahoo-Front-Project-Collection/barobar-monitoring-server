@@ -31,6 +31,7 @@ jobs:
       EC2_USER: ${{ secrets.EC2_USER }}
       EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
       APP_DIR: ${{ vars.APP_DIR }}
+      BACKEND_API_BASE_URL: ${{ vars.BACKEND_API_BASE_URL }}
       DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
 
     steps:
@@ -52,6 +53,10 @@ jobs:
           fi
           if [ -z "${APP_DIR}" ]; then
             echo "APP_DIR repository variable is required" >&2
+            exit 1
+          fi
+          if [ -z "${BACKEND_API_BASE_URL}" ]; then
+            echo "BACKEND_API_BASE_URL repository variable is required" >&2
             exit 1
           fi
           if [ -z "${DEPLOY_SHA}" ]; then
@@ -89,3 +94,10 @@ jobs:
           docker compose -f docker-compose.prod.yml up -d app
           docker image prune -f
           REMOTE
+
+      - name: Verify HTTPS health endpoint
+        run: |
+          set -euo pipefail
+
+          curl --fail --silent --show-error --retry 10 --retry-delay 3 --retry-connrefused \
+            "${BACKEND_API_BASE_URL%/}/health"

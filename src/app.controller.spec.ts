@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AppController } from './app.controller';
+import { AppController, type HealthResponse } from './app.controller';
 import { AppService } from './app.service';
 
 describe('AppController', () => {
@@ -17,6 +17,14 @@ describe('AppController', () => {
   describe('root', () => {
     it('should return "Hello World!"', () => {
       expect(appController.getHello()).toBe('Hello World!');
+    });
+  });
+
+  describe('health', () => {
+    it('should return an alive status without checking dependencies', () => {
+      const response: HealthResponse = appController.getHealth();
+
+      expect(response).toEqual({ status: 'ok' });
     });
   });
 });
