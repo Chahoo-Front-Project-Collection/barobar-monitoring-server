@@ -15,15 +15,11 @@ export class ReplaysService {
   ) {}
 
   async create(dto: CreateReplayDto, origin: string | undefined) {
-    const tenantDbId = await this.tenantGuard.validate(
-      dto.tenant_id,
-      dto.public_key,
-      origin,
-    );
+    const tenant = await this.tenantGuard.validate(dto.public_key, origin);
 
     const replayId = `replay_${randomUUID()}`;
     const fingerprint = buildFingerprint({
-      tenantId: tenantDbId,
+      tenantId: tenant.id,
       errorName: dto.error.name,
       requestUrl: dto.error.request_url,
       statusCode: dto.error.status_code,
@@ -40,7 +36,7 @@ export class ReplaysService {
     let storageResult: { storageKey: string; sizeBytes: number };
     try {
       storageResult = await this.storage.save(
-        dto.tenant_id,
+        tenant.slug,
         replayId,
         replayPayload,
       );
@@ -52,7 +48,7 @@ export class ReplaysService {
       const result = await this.prisma.$transaction(async (tx) => {
         const error = await tx.error.upsert({
           where: {
-            tenantId_fingerprint: { tenantId: tenantDbId, fingerprint },
+            tenantId_fingerprint: { tenantId: tenant.id, fingerprint },
           },
           update: {
             lastSeenAt: new Date(dto.occurred_at),
@@ -61,7 +57,7 @@ export class ReplaysService {
             environment: dto.environment,
           },
           create: {
-            tenantId: tenantDbId,
+            tenantId: tenant.id,
             fingerprint,
             message: dto.error.message,
             stack: dto.error.stack,
@@ -78,7 +74,7 @@ export class ReplaysService {
         const errorEvent = await tx.errorEvent.create({
           data: {
             errorId: error.id,
-            tenantId: tenantDbId,
+            tenantId: tenant.id,
             sessionId: dto.session_id,
             userId: dto.user?.user_id,
             userName: dto.user?.user_name,
@@ -104,7 +100,7 @@ export class ReplaysService {
         const replay = await tx.replay.create({
           data: {
             id: replayId,
-            tenantId: tenantDbId,
+            tenantId: tenant.id,
             errorEventId: errorEvent.id,
             storageKey: storageResult.storageKey,
             sizeBytes: storageResult.sizeBytes,

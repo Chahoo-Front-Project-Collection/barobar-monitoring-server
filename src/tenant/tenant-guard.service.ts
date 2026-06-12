@@ -7,38 +7,48 @@ import { PrismaService } from '../prisma/prisma.service';
 
 const DB_TIMEOUT_MS = 5000;
 
+export interface ValidatedTenant {
+  id: string;
+  slug: string;
+}
+
 @Injectable()
 export class TenantGuardService {
   constructor(private readonly prisma: PrismaService) {}
 
   async validate(
-    tenantId: string,
     publicKey: string,
     origin: string | undefined,
-  ): Promise<string> {
-    const query = this.prisma.apiKey.findFirst({
-      where: { publicKey, tenant: { slug: tenantId } },
+  ): Promise<ValidatedTenant> {
+    const query = this.prisma.apiKey.findUnique({
+      where: { publicKey },
       include: { tenant: true },
     });
-    const timeout = new Promise<never>((_, reject) =>
-      setTimeout(
-        () => reject(new GatewayTimeoutException('DB query timeout')),
-        DB_TIMEOUT_MS,
-      ),
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>(
+      (_, reject) =>
+        (timeoutId = setTimeout(
+          () => reject(new GatewayTimeoutException('DB query timeout')),
+          DB_TIMEOUT_MS,
+        )),
     );
-    const apiKey = await Promise.race([query, timeout]);
+    const apiKey = await Promise.race([query, timeout]).finally(() => {
+      if (timeoutId) clearTimeout(timeoutId);
+    });
 
     if (!apiKey) {
-      throw new UnauthorizedException('Invalid tenant_id or public_key');
+      throw new UnauthorizedException('Invalid public_key');
     }
 
-    if (origin && apiKey.allowedOrigins.length > 0) {
-      const allowed = apiKey.allowedOrigins.some((o) => o === origin);
-      if (!allowed) {
-        throw new UnauthorizedException(`Origin not allowed: ${origin}`);
+    if (apiKey.allowedOrigins.length > 0) {
+      if (!origin || !apiKey.allowedOrigins.includes(origin)) {
+        throw new UnauthorizedException('Origin not allowed');
       }
     }
 
-    return apiKey.tenant.id;
+    return {
+      id: apiKey.tenant.id,
+      slug: apiKey.tenant.slug,
+    };
   }
 }

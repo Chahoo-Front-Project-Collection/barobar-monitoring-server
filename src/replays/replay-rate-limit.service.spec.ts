@@ -2,11 +2,11 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import { ReplayRateLimitService } from './replay-rate-limit.service';
 
 describe('ReplayRateLimitService', () => {
-  it('limits replay requests by tenant and public key', () => {
+  it('limits replay requests by origin', () => {
     const service = new ReplayRateLimitService();
     const request = {
-      tenantId: 'demo',
       publicKey: 'public',
+      origin: 'https://service.test',
       ip: '203.0.113.10',
     };
 
@@ -22,13 +22,13 @@ describe('ReplayRateLimitService', () => {
     );
   });
 
-  it('limits replay requests by IP across tenants', () => {
+  it('limits replay requests by IP across origins', () => {
     const service = new ReplayRateLimitService();
 
     for (let count = 0; count < 120; count += 1) {
       service.assertAllowed(
         {
-          tenantId: `demo-${count}`,
+          origin: `https://service-${count}.test`,
           publicKey: `public-${count}`,
           ip: '203.0.113.10',
         },
@@ -39,7 +39,7 @@ describe('ReplayRateLimitService', () => {
     expect(() =>
       service.assertAllowed(
         {
-          tenantId: 'demo-over-limit',
+          origin: 'https://service-over-limit.test',
           publicKey: 'public-over-limit',
           ip: '203.0.113.10',
         },
@@ -51,8 +51,8 @@ describe('ReplayRateLimitService', () => {
   it('resets counters after the window passes', () => {
     const service = new ReplayRateLimitService();
     const request = {
-      tenantId: 'demo',
       publicKey: 'public',
+      origin: 'https://service.test',
       ip: '203.0.113.10',
     };
 

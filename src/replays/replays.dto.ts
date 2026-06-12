@@ -72,7 +72,6 @@ class ReplayPayloadDto {
 }
 
 export class CreateReplayDto {
-  @IsString() tenant_id: string;
   @IsString() public_key: string;
   @IsString() session_id: string;
   @IsString() version: string;

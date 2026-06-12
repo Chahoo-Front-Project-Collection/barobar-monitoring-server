@@ -103,7 +103,7 @@ DB에는 메타데이터와 스토리지 키만 기록합니다.
 ## Features
 
 - **리플레이 수집** — `POST /api/replays`
-  - `tenant_id` + `public_key` + 요청 Origin으로 테넌트 인증 (Origin allowlist 검증)
+  - `public_key` + 요청 Origin으로 테넌트 인증 (API key별 Origin allowlist 검증)
   - 에러 내용으로 fingerprint 생성 → `Error` upsert(중복 그룹화, 발생 횟수 증가)
   - `ErrorEvent` 생성 및 리플레이 페이로드 gzip 저장 후 `Replay` 기록
 - **Admin 조회 API** — `/api/admin/*` (대시보드 전용)

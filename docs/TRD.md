@@ -42,7 +42,7 @@ flowchart LR
 
 #### monitoring-server
 
-- tenant/public_key/origin 검증
+- public_key/origin 검증
 - error_group upsert
 - error_event 저장
 - replay gzip 파일 저장
@@ -62,7 +62,7 @@ flowchart LR
 3. 최근 1~3분 이벤트를 메모리에 보관
 4. axios interceptor에서 500 에러 또는 network error 감지
 5. `POST /api/replays` 호출
-6. monitoring-server가 tenant/public_key/origin 검증
+6. monitoring-server가 public_key/origin 검증
 7. error_group 생성 또는 기존 그룹 연결
 8. error_event 생성
 9. replay payload를 json.gz 파일로 저장
@@ -98,7 +98,7 @@ POST /api/replays
 #### 역할
 
 - error metadata와 rrweb events를 한 번에 수신
-- tenant_id/public_key/origin 검증
+- public_key/origin 검증
 - error_group upsert
 - error_event 생성
 - replay payload gzip 저장
@@ -109,7 +109,6 @@ POST /api/replays
 
 ```json
 {
-  "tenant_id": "demo",
   "public_key": "pub_demo",
   "session_id": "1716790000000-abc123",
   "version": "3.2.0",
@@ -258,7 +257,7 @@ GET /api/admin/replays/:id
 초기 저장 위치:
 
 ```text
-./storage/replays/{tenant_id}/{replay_id}.json.gz
+./storage/replays/{tenant_slug}/{replay_id}.json.gz
 ```
 
 DB에는 실제 rrweb events payload를 넣지 않고 storage key만 저장한다.
@@ -279,7 +278,7 @@ replay gzip 파일에는 DB에 저장하지 않는 상세 payload를 함께 저�
 ## 7. 저장 트랜잭션 정책
 
 1. 요청 payload validation 수행
-2. tenant_id, public_key, origin 검증
+2. public_key, origin 검증
 3. replay payload를 gzip 파일로 저장
 4. DB transaction으로 error_group, error_event, replay metadata 저장
 5. DB 저장 실패 시 생성된 gzip 파일 삭제
@@ -308,7 +307,6 @@ src/lib/monitoring.ts
 ```ts
 initMonitoring({
   apiUrl: 'http://localhost:4000',
-  tenantId: 'demo',
   publicKey: 'pub_demo',
   version: '3.2.0',
   environment: 'development',
@@ -342,7 +340,7 @@ monitoring-dashboard는 React 기반 별도 repo에서 구현한다. 본 BE는 d
 - demo tenant seed 사용
 - public_key 검증 적용
 - public_key는 브라우저에 노출되는 값이므로 secret으로 취급하지 않음
-- tenant_id + public_key + origin allowlist 조합으로 요청 검증
+- public_key + origin allowlist 조합으로 요청 검증
 - Authorization, Cookie, token, x-api-key 등 민감 header 저장 금지
 - request body, response body는 MVP에서 저장하지 않음
 - requestHeaders/responseHeaders 저장 시 allowlist 또는 denylist 적용

@@ -62,7 +62,7 @@ Replay 수집
 
 에러 저장
 
-- tenant_id 기준 고객사 구분
+- public_key 기준 고객사 구분
 - version, environment, page_url, request_url, status_code 저장
 - 같은 에러는 fingerprint 기준으로 그룹화
 

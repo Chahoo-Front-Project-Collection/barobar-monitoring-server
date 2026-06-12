@@ -1,11 +1,12 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 
-const REPLAY_TENANT_RATE_LIMIT_PER_MINUTE = 60;
+const REPLAY_PUBLIC_KEY_RATE_LIMIT_PER_MINUTE = 60;
+const REPLAY_ORIGIN_RATE_LIMIT_PER_MINUTE = 60;
 const REPLAY_IP_RATE_LIMIT_PER_MINUTE = 120;
 
 interface ReplayRateLimitRequest {
-  tenantId: string;
   publicKey: string;
+  origin?: string;
   ip: string;
 }
 
@@ -21,8 +22,13 @@ export class ReplayRateLimitService {
 
   assertAllowed(request: ReplayRateLimitRequest, now = Date.now()) {
     this.assertBucketAllowed(
-      `tenant:${request.tenantId}:${request.publicKey}`,
-      REPLAY_TENANT_RATE_LIMIT_PER_MINUTE,
+      `public-key:${request.publicKey}`,
+      REPLAY_PUBLIC_KEY_RATE_LIMIT_PER_MINUTE,
+      now,
+    );
+    this.assertBucketAllowed(
+      `origin:${request.origin ?? 'no-origin'}`,
+      REPLAY_ORIGIN_RATE_LIMIT_PER_MINUTE,
       now,
     );
     this.assertBucketAllowed(

@@ -13,10 +13,10 @@ export class ReplaysController {
 
   @Post()
   create(@Body() dto: CreateReplayDto, @Req() req: Request) {
-    const origin = req.headers['origin'] as string | undefined;
+    const origin = req.headers['origin'];
     this.rateLimit.assertAllowed({
-      tenantId: dto.tenant_id,
       publicKey: dto.public_key,
+      origin,
       ip: getClientIp(req),
     });
     return this.replaysService.create(dto, origin);

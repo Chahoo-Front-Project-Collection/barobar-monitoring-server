@@ -4,16 +4,17 @@ import { ReplayRateLimitService } from './replay-rate-limit.service';
 import { CreateReplayDto } from './replays.dto';
 
 describe('ReplaysController', () => {
-  it('rate-limits by tenant/public key and forwarded client IP before creating a replay', () => {
+  it('rate-limits by public key, origin, and forwarded client IP before creating a replay', () => {
+    const create = jest.fn().mockResolvedValue({ replay_id: 'replay_1' });
     const replaysService = {
-      create: jest.fn().mockResolvedValue({ replay_id: 'replay_1' }),
+      create,
     } as unknown as ReplaysService;
+    const assertAllowed = jest.fn();
     const rateLimit = {
-      assertAllowed: jest.fn(),
+      assertAllowed,
     } as unknown as ReplayRateLimitService;
     const controller = new ReplaysController(replaysService, rateLimit);
     const dto = {
-      tenant_id: 'demo',
       public_key: 'public',
     } as CreateReplayDto;
     const request = {
@@ -26,14 +27,11 @@ describe('ReplaysController', () => {
 
     void controller.create(dto, request as never);
 
-    expect(rateLimit.assertAllowed).toHaveBeenCalledWith({
-      tenantId: 'demo',
+    expect(assertAllowed).toHaveBeenCalledWith({
       publicKey: 'public',
+      origin: 'https://service.test',
       ip: '203.0.113.10',
     });
-    expect(replaysService.create).toHaveBeenCalledWith(
-      dto,
-      'https://service.test',
-    );
+    expect(create).toHaveBeenCalledWith(dto, 'https://service.test');
   });
 });

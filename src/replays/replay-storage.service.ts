@@ -17,16 +17,16 @@ export class ReplayStorageService {
   }
 
   async save(
-    tenantId: string,
+    tenantSlug: string,
     replayId: string,
     payload: object,
   ): Promise<{ storageKey: string; sizeBytes: number }> {
-    const dir = path.join(this.basePath, 'replays', tenantId);
+    const dir = path.join(this.basePath, 'replays', tenantSlug);
     await fs.mkdir(dir, { recursive: true });
 
     const fileName = `${replayId}.json.gz`;
     const filePath = path.join(dir, fileName);
-    const storageKey = `replays/${tenantId}/${fileName}`;
+    const storageKey = `replays/${tenantSlug}/${fileName}`;
 
     const json = JSON.stringify(payload);
     const compressed = await gzip(json);
