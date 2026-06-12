@@ -91,7 +91,7 @@ jobs:
           docker compose -f docker-compose.prod.yml build
           docker compose -f docker-compose.prod.yml up -d postgres
           docker compose -f docker-compose.prod.yml run --rm app node node_modules/prisma/build/index.js migrate deploy
-          docker compose -f docker-compose.prod.yml up -d app
+          docker compose -f docker-compose.prod.yml up -d --force-recreate app
           docker image prune -f
           REMOTE
 
@@ -99,5 +99,5 @@ jobs:
         run: |
           set -euo pipefail
 
-          curl --fail --silent --show-error --retry 10 --retry-delay 3 --retry-connrefused \
+          curl --fail-with-body --silent --show-error --retry 10 --retry-delay 3 --retry-connrefused \
             "${BACKEND_API_BASE_URL%/}/health"
