@@ -104,7 +104,7 @@ jobs:
           $COMPOSE up -d postgres
 
           echo "== Run database migrations =="
-          $COMPOSE run --rm app node node_modules/prisma/build/index.js migrate deploy
+          $COMPOSE run -T --rm app node node_modules/prisma/build/index.js migrate deploy </dev/null
 
           echo "== Recreate app container =="
           $COMPOSE up -d --build --force-recreate app
