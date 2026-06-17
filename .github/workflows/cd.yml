@@ -85,13 +85,36 @@ jobs:
             "APP_DIR='${APP_DIR}' GITHUB_SHA='${DEPLOY_SHA}' bash -s" <<'REMOTE'
           set -euo pipefail
 
+          COMPOSE="docker compose -f docker-compose.prod.yml"
+
           cd "$APP_DIR"
+          echo "== Deploy target =="
+          pwd
+          echo "GITHUB_SHA=${GITHUB_SHA}"
+
+          echo "== Fetch and checkout =="
           git fetch origin main
           git checkout "$GITHUB_SHA"
-          docker compose -f docker-compose.prod.yml build app
-          docker compose -f docker-compose.prod.yml up -d postgres
-          docker compose -f docker-compose.prod.yml run --rm app node node_modules/prisma/build/index.js migrate deploy
-          docker compose -f docker-compose.prod.yml up -d --force-recreate app
+          git log -1 --oneline
+
+          echo "== Build app image =="
+          $COMPOSE build app
+
+          echo "== Ensure postgres is running =="
+          $COMPOSE up -d postgres
+
+          echo "== Run database migrations =="
+          $COMPOSE run --rm app node node_modules/prisma/build/index.js migrate deploy
+
+          echo "== Recreate app container =="
+          $COMPOSE up -d --build --force-recreate app
+
+          echo "== Verify deployed container =="
+          $COMPOSE ps
+          $COMPOSE exec -T app sh -c 'echo "STORAGE_PATH=$STORAGE_PATH"'
+          $COMPOSE exec -T app sh -c 'grep -R "STORAGE_PATH\\|basePath\\|./storage" -n dist/src/replays/replay-storage.service.js'
+
+          echo "== Cleanup dangling images =="
           docker image prune -f
           REMOTE
 
