@@ -13,7 +13,7 @@ export class ReplayStorageService {
   private readonly basePath: string;
 
   constructor() {
-    this.basePath = './storage';
+    this.basePath = process.env.STORAGE_PATH ?? './storage';
   }
 
   async save(
