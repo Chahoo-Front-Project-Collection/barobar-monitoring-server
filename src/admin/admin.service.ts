@@ -27,7 +27,9 @@ export class AdminService {
         message: { contains: query.message, mode: 'insensitive' as const },
       }),
       ...(query.environment && { environment: query.environment }),
-      ...(query.version && { version: query.version }),
+      ...(query.version && {
+        version: { contains: query.version, mode: 'insensitive' as const },
+      }),
       ...(lastSeenAt && { lastSeenAt }),
     };
     const [items, total] = await this.prisma.$transaction([

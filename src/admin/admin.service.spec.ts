@@ -30,12 +30,12 @@ describe('AdminService.getErrors', () => {
     });
   });
 
-  it('keeps environment and version as exact matches', async () => {
+  it('keeps environment as an exact match and searches version as a substring', async () => {
     await service.getErrors({ environment: 'production', version: '3.2.0' });
 
     expect(lastFindManyArgs().where).toMatchObject({
       environment: 'production',
-      version: '3.2.0',
+      version: { contains: '3.2.0', mode: 'insensitive' },
     });
   });
 
