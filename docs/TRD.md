@@ -189,17 +189,18 @@ DELETE /api/admin/replays/:id
 
 #### `DELETE /api/admin/replays/:id`
 
-리플레이 1건을 hard delete하는 관리자 API이다.
+리플레이 1건과 연결된 occurrence event를 hard delete하는 관리자 API이다.
 
 - 삭제 대상
   - `Replay` row
+  - 연결된 `ErrorEvent` row
   - `Replay.storageKey`가 가리키는 gzip 파일
-- 보존 대상
-  - 연결된 `ErrorEvent`
-  - 부모 `Error` group
+- 부모 `Error` 처리
+  - 삭제 후 남은 `ErrorEvent`가 있으면 `occurrenceCount`, `firstSeenAt`, `lastSeenAt`을 남은 이벤트 기준으로 재계산한다.
+  - 삭제 후 남은 `ErrorEvent`가 없으면 부모 `Error` group도 삭제한다.
 - 목적
-  - 잘못 수집되었거나 불필요한 replay payload만 제거한다.
-  - 발생 이벤트와 error group 집계 정보는 유지한다.
+  - 잘못 수집되었거나 불필요한 replay payload와 그 occurrence event를 함께 제거한다.
+  - 대시보드의 occurrence list에 replay 없는 잔여 이벤트가 남지 않도록 한다.
 
 응답 예시:
 

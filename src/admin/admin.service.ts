@@ -124,11 +124,44 @@ export class AdminService {
   async deleteReplay(id: string): Promise<DeleteReplayResult> {
     const replay = await this.prisma.replay.findUnique({
       where: { id },
-      select: { id: true, storageKey: true, errorEventId: true },
+      select: {
+        id: true,
+        storageKey: true,
+        errorEvent: { select: { id: true, errorId: true } },
+        errorEventId: true,
+      },
     });
     if (!replay) throw new NotFoundException('Replay not found');
 
-    await this.prisma.replay.delete({ where: { id } });
+    const errorEventId = replay.errorEvent.id;
+    const errorId = replay.errorEvent.errorId;
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.replay.delete({ where: { id } });
+      await tx.errorEvent.delete({ where: { id: errorEventId } });
+
+      const remaining = await tx.errorEvent.aggregate({
+        where: { errorId },
+        _count: { _all: true },
+        _min: { occurredAt: true },
+        _max: { occurredAt: true },
+      });
+      const remainingCount = remaining._count._all;
+
+      if (remainingCount === 0) {
+        await tx.error.delete({ where: { id: errorId } });
+      } else {
+        await tx.error.update({
+          where: { id: errorId },
+          data: {
+            occurrenceCount: remainingCount,
+            firstSeenAt: remaining._min.occurredAt ?? undefined,
+            lastSeenAt: remaining._max.occurredAt ?? undefined,
+          },
+        });
+      }
+    });
+
     const cleanup = await this.cleanupReplayFiles([
       { replayId: replay.id, storageKey: replay.storageKey },
     ]);
@@ -136,7 +169,8 @@ export class AdminService {
     this.logger.log(
       `Admin replay delete result: ${JSON.stringify({
         id,
-        errorEventId: replay.errorEventId,
+        errorEventId,
+        errorId,
         cleanup,
       })}`,
     );

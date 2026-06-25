@@ -89,23 +89,34 @@ describe('AdminService.getErrors', () => {
   });
 });
 
+type DeleteOperationsPrismaMock = {
+  replay: {
+    findUnique: jest.Mock;
+    delete: jest.Mock;
+    deleteMany: jest.Mock;
+  };
+  error: {
+    findUnique: jest.Mock;
+    delete: jest.Mock;
+    update: jest.Mock;
+  };
+  errorEvent: {
+    aggregate: jest.Mock;
+    delete: jest.Mock;
+    deleteMany: jest.Mock;
+  };
+  $transaction: jest.Mock;
+};
+
+type TransactionCallback = (tx: DeleteOperationsPrismaMock) => unknown;
+
+function isTransactionCallback(input: unknown): input is TransactionCallback {
+  return typeof input === 'function';
+}
+
 describe('AdminService delete operations', () => {
   let service: AdminService;
-  let prisma: {
-    replay: {
-      findUnique: jest.Mock;
-      delete: jest.Mock;
-      deleteMany: jest.Mock;
-    };
-    error: {
-      findUnique: jest.Mock;
-      delete: jest.Mock;
-    };
-    errorEvent: {
-      deleteMany: jest.Mock;
-    };
-    $transaction: jest.Mock;
-  };
+  let prisma: DeleteOperationsPrismaMock;
   let storage: { deleteWithResult: jest.Mock };
 
   beforeEach(() => {
@@ -118,13 +129,26 @@ describe('AdminService delete operations', () => {
       error: {
         findUnique: jest.fn(),
         delete: jest.fn().mockReturnValue({ model: 'error.delete' }),
+        update: jest.fn().mockReturnValue({ model: 'error.update' }),
       },
       errorEvent: {
+        aggregate: jest.fn().mockResolvedValue({
+          _count: { _all: 1 },
+          _min: { occurredAt: new Date('2026-05-27T09:00:00.000Z') },
+          _max: { occurredAt: new Date('2026-05-27T10:00:00.000Z') },
+        }),
+        delete: jest.fn().mockResolvedValue({}),
         deleteMany: jest
           .fn()
           .mockReturnValue({ model: 'errorEvent.deleteMany' }),
       },
-      $transaction: jest.fn().mockResolvedValue([]),
+      $transaction: jest.fn((input: unknown) => {
+        if (isTransactionCallback(input)) {
+          return Promise.resolve(input(prisma));
+        }
+
+        return Promise.resolve(input as unknown[]);
+      }),
     };
     storage = {
       deleteWithResult: jest.fn().mockResolvedValue({
@@ -138,11 +162,12 @@ describe('AdminService delete operations', () => {
     );
   });
 
-  it('deletes a single replay row and file without deleting the linked event', async () => {
+  it('deletes a single replay row, linked event, and file while updating the parent error', async () => {
     prisma.replay.findUnique.mockResolvedValue({
       id: 'replay_1',
       errorEventId: 'event_1',
       storageKey: 'replays/demo/replay_1.json.gz',
+      errorEvent: { id: 'event_1', errorId: 'error_1' },
     });
 
     const result = await service.deleteReplay('replay_1');
@@ -150,8 +175,23 @@ describe('AdminService delete operations', () => {
     expect(prisma.replay.delete).toHaveBeenCalledWith({
       where: { id: 'replay_1' },
     });
-    expect(prisma.errorEvent.deleteMany).not.toHaveBeenCalled();
-    expect(prisma.error.delete).not.toHaveBeenCalled();
+    expect(prisma.errorEvent.delete).toHaveBeenCalledWith({
+      where: { id: 'event_1' },
+    });
+    expect(prisma.errorEvent.aggregate).toHaveBeenCalledWith({
+      where: { errorId: 'error_1' },
+      _count: { _all: true },
+      _min: { occurredAt: true },
+      _max: { occurredAt: true },
+    });
+    expect(prisma.error.update).toHaveBeenCalledWith({
+      where: { id: 'error_1' },
+      data: {
+        occurrenceCount: 1,
+        firstSeenAt: new Date('2026-05-27T09:00:00.000Z'),
+        lastSeenAt: new Date('2026-05-27T10:00:00.000Z'),
+      },
+    });
     expect(storage.deleteWithResult).toHaveBeenCalledWith(
       'replays/demo/replay_1.json.gz',
     );
@@ -218,6 +258,7 @@ describe('AdminService delete operations', () => {
       id: 'replay_1',
       errorEventId: 'event_1',
       storageKey: 'replays/demo/replay_1.json.gz',
+      errorEvent: { id: 'event_1', errorId: 'error_1' },
     });
     storage.deleteWithResult.mockResolvedValue({
       status: 'failed',
@@ -244,6 +285,7 @@ describe('AdminService delete operations', () => {
       id: 'replay_1',
       errorEventId: 'event_1',
       storageKey: 'replays/demo/replay_1.json.gz',
+      errorEvent: { id: 'event_1', errorId: 'error_1' },
     });
     storage.deleteWithResult.mockResolvedValue({
       status: 'missing',
@@ -253,5 +295,26 @@ describe('AdminService delete operations', () => {
     const result = await service.deleteReplay('replay_1');
 
     expect(result.cleanup.status).toBe('complete_with_missing_files');
+  });
+
+  it('deletes the parent error when replay deletion removes the last event', async () => {
+    prisma.replay.findUnique.mockResolvedValue({
+      id: 'replay_1',
+      errorEventId: 'event_1',
+      storageKey: 'replays/demo/replay_1.json.gz',
+      errorEvent: { id: 'event_1', errorId: 'error_1' },
+    });
+    prisma.errorEvent.aggregate.mockResolvedValue({
+      _count: { _all: 0 },
+      _min: { occurredAt: null },
+      _max: { occurredAt: null },
+    });
+
+    await service.deleteReplay('replay_1');
+
+    expect(prisma.error.delete).toHaveBeenCalledWith({
+      where: { id: 'error_1' },
+    });
+    expect(prisma.error.update).not.toHaveBeenCalled();
   });
 });
