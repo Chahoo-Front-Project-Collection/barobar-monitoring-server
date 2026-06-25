@@ -8,6 +8,11 @@ import { promisify } from 'util';
 const gzip = promisify(zlib.gzip);
 const gunzip = promisify(zlib.gunzip);
 
+export type ReplayStorageDeleteResult =
+  | { status: 'deleted'; storageKey: string }
+  | { status: 'missing'; storageKey: string }
+  | { status: 'failed'; storageKey: string; message: string };
+
 @Injectable()
 export class ReplayStorageService {
   private readonly basePath: string;
@@ -51,4 +56,29 @@ export class ReplayStorageService {
     const filePath = path.join(this.basePath, storageKey);
     await fs.unlink(filePath).catch(() => undefined);
   }
+
+  async deleteWithResult(
+    storageKey: string,
+  ): Promise<ReplayStorageDeleteResult> {
+    const filePath = path.join(this.basePath, storageKey);
+
+    try {
+      await fs.unlink(filePath);
+      return { status: 'deleted', storageKey };
+    } catch (error) {
+      if (isNodeError(error) && error.code === 'ENOENT') {
+        return { status: 'missing', storageKey };
+      }
+
+      return {
+        status: 'failed',
+        storageKey,
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+}
+
+function isNodeError(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error && 'code' in error;
 }
