@@ -111,13 +111,13 @@ DB에는 메타데이터와 스토리지 키만 기록합니다.
   | 메서드 | 경로                     | 설명                                                                                                    |
   | ------ | ------------------------ | ------------------------------------------------------------------------------------------------------- |
   | `GET`  | `/api/admin/errors`      | 에러 그룹 목록 (필터: `message`, `environment`, `version`, `date_from`, `date_to`, `page`, `page_size`) |
-  | `GET`  | `/api/admin/errors/:id`  | 에러 상세 + 발생 이벤트                                                                                 |
+  | `GET`  | `/api/admin/errors/:id`  | 에러 상세 + 발생 이벤트 페이지 (쿼리: `events_page`, `events_page_size`)                                |
   | `DELETE` | `/api/admin/errors/:id` | 에러 그룹 hard delete. 연결된 `ErrorEvent`, `Replay` row, replay gzip 파일까지 함께 삭제                |
   | `GET`  | `/api/admin/replays`     | 리플레이 목록                                                                                           |
   | `GET`  | `/api/admin/replays/:id` | 리플레이 상세 + 페이로드                                                                                |
   | `DELETE` | `/api/admin/replays/:id` | 리플레이 1건 hard delete. `Replay` row, 연결된 `ErrorEvent`, gzip 파일을 삭제하고 부모 `Error` 집계를 갱신(남은 이벤트가 없으면 부모 `Error`도 삭제) |
   - 날짜 필터는 `lastSeenAt` 기준이며 `date_to`는 해당 일자 전체를 포함합니다.
-  - 응답은 `{ success, message, data }` 봉투 형식이며, 목록은 `pagination` 정보를 포함합니다.
+  - 응답은 `{ success, message, data }` 봉투 형식이며, 목록은 `pagination` 정보를 포함합니다. 에러 상세의 발생 이벤트 페이지 정보는 `data.eventsPagination`으로 반환합니다.
   - 삭제 API도 동일한 응답 봉투를 사용합니다. 삭제 결과에는 `cleanup.status`가 포함되며 값은 `complete`, `complete_with_missing_files`, `partial_failed` 중 하나입니다.
   - replay 파일 삭제는 `deleteWithResult()` 경로를 통해 `deleted`, `missing`, `failed`를 구분합니다. 파일이 이미 없는 경우는 삭제 성공으로 처리하되, 실제 unlink 실패는 `partial_failed`로 노출합니다.
 

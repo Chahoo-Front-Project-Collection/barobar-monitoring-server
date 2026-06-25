@@ -83,8 +83,15 @@ export class AdminController {
 
   @UseGuards(AdminSessionGuard)
   @Get('errors/:id')
-  async getError(@Param('id') id: string) {
-    const data = await this.adminService.getError(id);
+  async getError(
+    @Param('id') id: string,
+    @Query('events_page') eventsPage?: string,
+    @Query('events_page_size') eventsPageSize?: string,
+  ) {
+    const data = await this.adminService.getError(id, {
+      eventsPage: eventsPage ? Number(eventsPage) : undefined,
+      eventsPageSize: eventsPageSize ? Number(eventsPageSize) : undefined,
+    });
     return ok(data);
   }
 
