@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -88,6 +89,18 @@ export class AdminController {
   }
 
   @UseGuards(AdminSessionGuard)
+  @Delete('errors/:id')
+  async deleteError(@Param('id') id: string) {
+    const data = await this.adminService.deleteErrorGroup(id);
+    return ok(
+      data,
+      data.cleanup.status === 'partial_failed'
+        ? 'Deleted with storage cleanup failures'
+        : 'OK',
+    );
+  }
+
+  @UseGuards(AdminSessionGuard)
   @Get('replays')
   async getReplays(@Query('tenant') tenantSlug?: string) {
     const { items, total } = await this.adminService.getReplays({ tenantSlug });
@@ -99,5 +112,17 @@ export class AdminController {
   async getReplay(@Param('id') id: string) {
     const data = await this.adminService.getReplay(id);
     return ok(data);
+  }
+
+  @UseGuards(AdminSessionGuard)
+  @Delete('replays/:id')
+  async deleteReplay(@Param('id') id: string) {
+    const data = await this.adminService.deleteReplay(id);
+    return ok(
+      data,
+      data.cleanup.status === 'partial_failed'
+        ? 'Deleted with storage cleanup failures'
+        : 'OK',
+    );
   }
 }
