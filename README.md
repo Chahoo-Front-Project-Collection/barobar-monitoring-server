@@ -1,11 +1,11 @@
 # Barobar Monitoring Server
 
 Barobar 서비스의 프론트엔드 에러와 **rrweb 세션 리플레이**를 `수집·저장`하고,
-모니터링 대시보드 웹에서 `조회` API를 제공하는 백엔드입니다.
+모니터링 대시보드 웹에서 `조회·삭제` API를 제공하는 백엔드입니다.
 
 - 실서비스 FE에서 보낸 500 에러 이벤트를 해당 서버에서 저장.
 - 리플레이 페이로드는 gzip 파일로 보관.
-- 수집된 데이터는 모니터링 대시보드 웹에서 조회.
+- 수집된 데이터는 모니터링 대시보드 웹에서 조회하고, 관리자 화면에서 단건 삭제 가능.
 
 > Sentry 같은 외부 통합 SaaS에 의존하지 않고, "세션 리플레이"라는 핵심 기능만 자체 호스팅으로 가볍게 운영하는 것을 목표로 합니다.
 
@@ -68,7 +68,7 @@ flowchart LR
   API --> DB["PostgreSQL<br/>metadata"]
   API --> FS["Local Filesystem<br/>replay json.gz"]
 
-  DASH["monitoring-dashboard<br/>React"] -->|GET /api/admin/*| API
+  DASH["monitoring-dashboard<br/>React"] -->|GET/DELETE /api/admin/*| API
   DASH --> PLAYER["rrweb-player"]
 ```
 
@@ -80,7 +80,7 @@ NestJS 모듈 구조로 구성되며, 수집(write)과 조회(read) 경로가 �
 src/
 ├── main.ts          # 부트스트랩: ValidationPipe(whitelist), CORS, JSON 50mb, PORT
 ├── app.module.ts    # 루트 모듈
-├── admin/           # 대시보드용 조회 API (errors / replays)
+├── admin/           # 대시보드용 조회/삭제 API (errors / replays)
 ├── replays/         # 리플레이 수집(ingestion): controller, service,
 │                    #   storage(gzip), fingerprint, DTO
 ├── tenant/          # 테넌트 인증 (API Key + Origin allowlist) 가드
@@ -106,16 +106,20 @@ DB에는 메타데이터와 스토리지 키만 기록합니다.
   - `public_key` + 요청 Origin으로 테넌트 인증 (API key별 Origin allowlist 검증)
   - 에러 내용으로 fingerprint 생성 → `Error` upsert(중복 그룹화, 발생 횟수 증가)
   - `ErrorEvent` 생성 및 리플레이 페이로드 gzip 저장 후 `Replay` 기록
-- **Admin 조회 API** — `/api/admin/*` (대시보드 전용)
+- **Admin 조회/삭제 API** — `/api/admin/*` (대시보드 전용)
 
   | 메서드 | 경로                     | 설명                                                                                                    |
   | ------ | ------------------------ | ------------------------------------------------------------------------------------------------------- |
   | `GET`  | `/api/admin/errors`      | 에러 그룹 목록 (필터: `message`, `environment`, `version`, `date_from`, `date_to`, `page`, `page_size`) |
   | `GET`  | `/api/admin/errors/:id`  | 에러 상세 + 발생 이벤트                                                                                 |
+  | `DELETE` | `/api/admin/errors/:id` | 에러 그룹 hard delete. 연결된 `ErrorEvent`, `Replay` row, replay gzip 파일까지 함께 삭제                |
   | `GET`  | `/api/admin/replays`     | 리플레이 목록                                                                                           |
   | `GET`  | `/api/admin/replays/:id` | 리플레이 상세 + 페이로드                                                                                |
+  | `DELETE` | `/api/admin/replays/:id` | 리플레이 1건 hard delete. `Replay` row와 gzip 파일만 삭제하고 연결된 `ErrorEvent`/`Error`는 보존        |
   - 날짜 필터는 `lastSeenAt` 기준이며 `date_to`는 해당 일자 전체를 포함합니다.
   - 응답은 `{ success, message, data }` 봉투 형식이며, 목록은 `pagination` 정보를 포함합니다.
+  - 삭제 API도 동일한 응답 봉투를 사용합니다. 삭제 결과에는 `cleanup.status`가 포함되며 값은 `complete`, `complete_with_missing_files`, `partial_failed` 중 하나입니다.
+  - replay 파일 삭제는 `deleteWithResult()` 경로를 통해 `deleted`, `missing`, `failed`를 구분합니다. 파일이 이미 없는 경우는 삭제 성공으로 처리하되, 실제 unlink 실패는 `partial_failed`로 노출합니다.
 
 - **테넌트 인증** — API Key(공개 키) + Origin 허용 목록, DB 조회 타임아웃(5s) 처리
 - **파일 기반 스토리지** — 리플레이 페이로드를 gzip JSON으로 저장/로드

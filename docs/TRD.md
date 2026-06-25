@@ -25,7 +25,7 @@ flowchart LR
   API --> DB["PostgreSQL<br/>metadata"]
   API --> FS["Local Filesystem<br/>replay json.gz"]
 
-  DASH["monitoring-dashboard<br/>React"] -->|GET /api/admin/*| API
+  DASH["monitoring-dashboard<br/>React"] -->|GET/DELETE /api/admin/*| API
   DASH --> PLAYER["rrweb-player"]
 ```
 
@@ -46,7 +46,7 @@ flowchart LR
 - error_group upsert
 - error_event 저장
 - replay gzip 파일 저장
-- admin 조회 API 제공
+- admin 조회/삭제 API 제공
 
 #### monitoring-dashboard
 
@@ -179,11 +179,87 @@ POST /api/replays
 ```text
 GET /api/admin/errors
 GET /api/admin/errors/:id
+DELETE /api/admin/errors/:id
 GET /api/admin/replays
 GET /api/admin/replays/:id
+DELETE /api/admin/replays/:id
 ```
 
-초기에는 로그인 없이 구현한다. 배포 시에는 IP allowlist 또는 reverse proxy 레벨에서 `/api/admin/*` 접근을 차단한다.
+현재 admin API는 admin session guard로 보호한다. 배포 시에는 필요에 따라 IP allowlist 또는 reverse proxy 레벨의 `/api/admin/*` 추가 차단을 병행할 수 있다.
+
+#### `DELETE /api/admin/replays/:id`
+
+리플레이 1건을 hard delete하는 관리자 API이다.
+
+- 삭제 대상
+  - `Replay` row
+  - `Replay.storageKey`가 가리키는 gzip 파일
+- 보존 대상
+  - 연결된 `ErrorEvent`
+  - 부모 `Error` group
+- 목적
+  - 잘못 수집되었거나 불필요한 replay payload만 제거한다.
+  - 발생 이벤트와 error group 집계 정보는 유지한다.
+
+응답 예시:
+
+```json
+{
+  "success": true,
+  "message": "OK",
+  "data": {
+    "deleted": true,
+    "id": "replay_abc123",
+    "cleanup": {
+      "status": "complete",
+      "deleted": [
+        {
+          "replayId": "replay_abc123",
+          "status": "deleted",
+          "storageKey": "replays/demo/replay_abc123.json.gz"
+        }
+      ],
+      "missing": [],
+      "failed": []
+    }
+  }
+}
+```
+
+#### `DELETE /api/admin/errors/:id`
+
+에러 그룹 1건을 hard delete하는 관리자 API이다.
+
+- 삭제 대상
+  - `Error` row
+  - 연결된 모든 `ErrorEvent` row
+  - 연결된 모든 `Replay` row
+  - 연결된 replay gzip 파일
+- 주의
+  - 상세 조회 API의 최근 20개 이벤트 payload에 의존하지 않고 DB에서 authoritative target을 조회한다.
+  - bulk delete, soft delete, restore bin은 MVP 범위에 포함하지 않는다.
+
+#### Replay 파일 cleanup 결과
+
+삭제 API는 DB 삭제 후 replay 파일 cleanup 결과를 구조화해서 반환한다.
+
+```text
+cleanup.status:
+- complete
+- complete_with_missing_files
+- partial_failed
+```
+
+파일별 결과:
+
+```text
+deleted: unlink 성공
+missing: 파일이 이미 없음. artifact가 이미 없으므로 삭제 성공으로 취급
+failed: unlink 실패. API 응답은 success envelope로 반환하되 cleanup.status를 partial_failed로 표시하고 로그에 남김
+```
+
+`ReplayStorageService.delete()`는 기존 호출자 호환을 위해 unlink 실패를 swallow할 수 있다. 관리자 삭제 API는 `deleted`, `missing`, `failed` 구분이 필요하므로 non-swallowing `deleteWithResult()` 경로를 사용한다.
+
 
 ## 5. DB 스키마 초안
 
@@ -322,7 +398,7 @@ axios interceptor 처리:
 
 ## 9. monitoring-dashboard 연동
 
-monitoring-dashboard는 React 기반 별도 repo에서 구현한다. 본 BE는 dashboard가 사용할 `/api/admin/*` 조회 API를 제공한다.
+monitoring-dashboard는 React 기반 별도 repo에서 구현한다. 본 BE는 dashboard가 사용할 `/api/admin/*` 조회/삭제 API를 제공한다.
 
 화면 route는 다음을 기준으로 한다.
 
@@ -349,7 +425,7 @@ monitoring-dashboard는 React 기반 별도 repo에서 구현한다. 본 BE는 d
 ### 배포 전 필수
 
 - `POST /api/replays`는 public 허용
-- `GET /api/admin/*`는 IP allowlist 적용
+- `/api/admin/*`는 admin session guard를 기본으로 적용하고, 배포 환경에서는 필요 시 IP allowlist를 추가 적용
 - dashboard 접근도 IP 기준 차단
 - CORS origin 제한
 - payload size limit 적용
@@ -369,17 +445,19 @@ monitoring-dashboard는 React 기반 별도 repo에서 구현한다. 본 BE는 d
 9. `GET /api/admin/errors/:id` 구현
 10. `GET /api/admin/replays` 구현
 11. `GET /api/admin/replays/:id` 구현
-12. 실서비스 FE에 `monitoring.ts` 추가
-13. rrweb record 및 buffer 관리 구현
-14. axios interceptor에서 500 에러 감지
-15. `POST /api/replays` 연동
-16. 로컬에서 500 에러 수집 테스트
-17. monitoring-dashboard 생성
-18. 에러 목록 화면 구현
-19. 에러 상세 화면 구현
-20. rrweb-player replay 재생 구현
-21. payload limit, masking, retention 추가
-22. 배포 환경 결정
+12. `DELETE /api/admin/replays/:id` 구현
+13. `DELETE /api/admin/errors/:id` 구현
+14. 실서비스 FE에 `monitoring.ts` 추가
+15. rrweb record 및 buffer 관리 구현
+16. axios interceptor에서 500 에러 감지
+17. `POST /api/replays` 연동
+18. 로컬에서 500 에러 수집 테스트
+19. monitoring-dashboard 생성
+20. 에러 목록 화면 구현
+21. 에러 상세 화면 구현
+22. rrweb-player replay 재생 구현
+23. payload limit, masking, retention 추가
+24. 배포 환경 결정
 
 ## 12. MVP 완료 조건
 
