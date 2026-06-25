@@ -73,20 +73,43 @@ export class AdminService {
     return { items, total, pageSize };
   }
 
-  async getError(id: string) {
-    const error = await this.prisma.error.findUnique({
-      where: { id },
-      include: {
-        tenant: { select: { slug: true, name: true } },
-        errorEvents: {
-          orderBy: { occurredAt: 'desc' },
-          take: 20,
-          include: { replay: { select: { id: true } } },
+  async getError(
+    id: string,
+    query: { eventsPage?: number; eventsPageSize?: number } = {},
+  ) {
+    const eventsPage =
+      query.eventsPage && query.eventsPage > 0 ? query.eventsPage : 1;
+    const eventsPageSize =
+      query.eventsPageSize && query.eventsPageSize > 0
+        ? query.eventsPageSize
+        : 20;
+
+    const [error, totalEvents] = await this.prisma.$transaction([
+      this.prisma.error.findUnique({
+        where: { id },
+        include: {
+          tenant: { select: { slug: true, name: true } },
+          errorEvents: {
+            orderBy: { occurredAt: 'desc' },
+            skip: (eventsPage - 1) * eventsPageSize,
+            take: eventsPageSize,
+            include: { replay: { select: { id: true } } },
+          },
         },
-      },
-    });
+      }),
+      this.prisma.errorEvent.count({ where: { errorId: id } }),
+    ]);
     if (!error) throw new NotFoundException('Error not found');
-    return error;
+
+    return {
+      ...error,
+      eventsPagination: {
+        page: eventsPage,
+        pageSize: eventsPageSize,
+        total: totalEvents,
+        totalPages: Math.max(1, Math.ceil(totalEvents / eventsPageSize)),
+      },
+    };
   }
 
   async getReplays(query: { tenantSlug?: string }) {

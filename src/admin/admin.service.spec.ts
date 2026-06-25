@@ -89,6 +89,88 @@ describe('AdminService.getErrors', () => {
   });
 });
 
+interface ErrorFindUniqueArgs {
+  where: { id: string };
+  include: {
+    errorEvents: {
+      orderBy: { occurredAt: 'desc' };
+      skip: number;
+      take: number;
+    };
+  };
+}
+
+describe('AdminService.getError', () => {
+  let service: AdminService;
+  let findUnique: jest.Mock<unknown, [ErrorFindUniqueArgs]>;
+  let errorEventCount: jest.Mock;
+
+  beforeEach(() => {
+    findUnique = jest.fn<unknown, [ErrorFindUniqueArgs]>().mockReturnValue({
+      id: 'error_1',
+      errorEvents: [{ id: 'event_21' }],
+    });
+    errorEventCount = jest.fn().mockReturnValue(45);
+    const prisma = {
+      error: { findUnique },
+      errorEvent: { count: errorEventCount },
+      $transaction: (ops: unknown[]) => Promise.resolve(ops),
+    } as unknown as PrismaService;
+    const storage = {} as ReplayStorageService;
+    service = new AdminService(prisma, storage);
+  });
+
+  function lastFindUniqueArgs(): ErrorFindUniqueArgs {
+    const [args] = findUnique.mock.calls[0] ?? [];
+    if (!args) {
+      throw new Error('findUnique was not called');
+    }
+    return args;
+  }
+
+  it('paginates occurrence events and returns event pagination metadata', async () => {
+    const result = await service.getError('error_1', {
+      eventsPage: 3,
+      eventsPageSize: 10,
+    });
+
+    expect(lastFindUniqueArgs().where).toEqual({ id: 'error_1' });
+    expect(lastFindUniqueArgs().include.errorEvents).toMatchObject({
+      orderBy: { occurredAt: 'desc' },
+      skip: 20,
+      take: 10,
+    });
+    expect(errorEventCount).toHaveBeenCalledWith({
+      where: { errorId: 'error_1' },
+    });
+    expect(result).toMatchObject({
+      eventsPagination: {
+        page: 3,
+        pageSize: 10,
+        total: 45,
+        totalPages: 5,
+      },
+    });
+  });
+
+  it('defaults occurrence events to page 1 and page size 20', async () => {
+    await service.getError('error_1');
+
+    expect(findUnique.mock.calls[0]?.[0].include.errorEvents).toMatchObject({
+      skip: 0,
+      take: 20,
+    });
+  });
+
+  it('throws when the requested error group is missing', async () => {
+    findUnique.mockReturnValue(null);
+
+    await expect(service.getError('missing')).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+});
+
 type DeleteOperationsPrismaMock = {
   replay: {
     findUnique: jest.Mock;

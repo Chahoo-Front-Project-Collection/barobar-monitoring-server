@@ -178,7 +178,7 @@ POST /api/replays
 
 ```text
 GET /api/admin/errors
-GET /api/admin/errors/:id
+GET /api/admin/errors/:id?events_page=1&events_page_size=20
 DELETE /api/admin/errors/:id
 GET /api/admin/replays
 GET /api/admin/replays/:id
@@ -186,6 +186,20 @@ DELETE /api/admin/replays/:id
 ```
 
 현재 admin API는 admin session guard로 보호한다. 배포 시에는 필요에 따라 IP allowlist 또는 reverse proxy 레벨의 `/api/admin/*` 추가 차단을 병행할 수 있다.
+
+
+#### `GET /api/admin/errors/:id`
+
+에러 그룹 상세와 occurrence event 페이지를 조회하는 관리자 API이다.
+
+- Query
+  - `events_page`: occurrence event 페이지 번호. 기본값은 `1`이다.
+  - `events_page_size`: occurrence event 페이지 크기. 기본값은 `20`이다.
+- 정렬
+  - occurrence event는 `occurredAt desc` 순서로 반환한다.
+- 응답
+  - `data.errorEvents`: 현재 페이지의 occurrence event 목록
+  - `data.eventsPagination`: `{ page, pageSize, total, totalPages }`
 
 #### `DELETE /api/admin/replays/:id`
 
@@ -443,7 +457,7 @@ monitoring-dashboard는 React 기반 별도 repo에서 구현한다. 본 BE는 d
 6. replay payload gzip local 저장 구현
 7. 저장 실패/DB 실패 rollback 정책 구현
 8. `GET /api/admin/errors` 구현
-9. `GET /api/admin/errors/:id` 구현
+9. `GET /api/admin/errors/:id?events_page=1&events_page_size=20` 구현
 10. `GET /api/admin/replays` 구현
 11. `GET /api/admin/replays/:id` 구현
 12. `DELETE /api/admin/replays/:id` 구현
